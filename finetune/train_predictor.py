@@ -12,7 +12,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import comet_ml
 
 # Ensure project root is in path
-sys.path.append('../')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 from config import Config
 from dataset import QlibDataset
 from model.kronos import KronosTokenizer, Kronos
