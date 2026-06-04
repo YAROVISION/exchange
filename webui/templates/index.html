@@ -1202,7 +1202,7 @@
                             </div>
                         </div>
                         <!-- Yesterday Intraday Chart -->
-                        <div id="yesterday-chart" style="display: none; height: 230px; margin-top: 12px; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
+                        <div id="yesterday-chart" style="display: none; height: 230px; width: 95%; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
                     </div>
                 </div>
 
@@ -2519,6 +2519,19 @@
                 const maxIndex = highs.indexOf(maxPrice);
                 const minIndex = lows.indexOf(minPrice);
 
+                // Calculate Y-axis range with a 15% gap at the top and bottom
+                const priceDiff = maxPrice - minPrice;
+                let yMin, yMax;
+                if (priceDiff > 0) {
+                    const totalHeight = priceDiff / 0.7; // 100% - 15% top - 15% bottom = 70%
+                    const pad = totalHeight * 0.15;
+                    yMin = minPrice - pad;
+                    yMax = maxPrice + pad;
+                } else {
+                    yMin = minPrice * 0.85;
+                    yMax = maxPrice * 1.15;
+                }
+
                 // Max price trace (Red dot)
                 const maxTrace = {
                     x: [times[maxIndex]],
@@ -2582,7 +2595,8 @@
                         gridcolor: 'rgba(218, 192, 163, 0.15)',
                         tickcolor: 'var(--coffee-dark)',
                         tickfont: { color: 'var(--coffee-dark)', size: 9 },
-                        tickformat: '$,.0f'
+                        tickformat: '$,.0f',
+                        range: [yMin, yMax]
                     },
                     showlegend: false
                 };
