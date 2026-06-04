@@ -2462,9 +2462,14 @@
         // Fetch and load hourly chart for yesterday
         async function loadYesterdayChart(yesterdayDateStr) {
             try {
-                const yDate = new Date(yesterdayDateStr);
-                const startTime = Date.UTC(yDate.getUTCFullYear(), yDate.getUTCMonth(), yDate.getUTCDate(), 0, 0, 0, 0);
-                const endTime = Date.UTC(yDate.getUTCFullYear(), yDate.getUTCMonth(), yDate.getUTCDate(), 23, 59, 59, 999);
+                // Parse date string manually to avoid timezone shifts
+                const parts = yesterdayDateStr.split('-');
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // 0-indexed month
+                const day = parseInt(parts[2]);
+                
+                const startTime = Date.UTC(year, month, day, 0, 0, 0, 0);
+                const endTime = Date.UTC(year, month, day, 23, 59, 59, 999);
                 
                 const response = await axios.get(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=${startTime}&endTime=${endTime}`);
                 const klines = response.data;
@@ -2476,12 +2481,16 @@
                 
                 const times = [];
                 const prices = [];
+                const highs = [];
+                const lows = [];
                 
                 klines.forEach(k => {
                     const time = new Date(k[0]);
                     const hour = String(time.getUTCHours()).padStart(2, '0') + ':00';
                     times.push(hour);
                     prices.push(parseFloat(k[4])); // Hourly close price
+                    highs.push(parseFloat(k[2]));  // Hourly absolute high
+                    lows.push(parseFloat(k[3]));   // Hourly absolute low
                 });
                 
                 const firstPrice = prices[0];
@@ -2504,11 +2513,11 @@
                     hoverinfo: 'x+y'
                 };
 
-                // Find highest and lowest price indices
-                const maxPrice = Math.max(...prices);
-                const minPrice = Math.min(...prices);
-                const maxIndex = prices.indexOf(maxPrice);
-                const minIndex = prices.indexOf(minPrice);
+                // Find absolute daily high and low across all hourly candles
+                const maxPrice = Math.max(...highs);
+                const minPrice = Math.min(...lows);
+                const maxIndex = highs.indexOf(maxPrice);
+                const minIndex = lows.indexOf(minPrice);
 
                 // Max price trace (Red dot)
                 const maxTrace = {
