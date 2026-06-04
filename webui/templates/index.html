@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kronos — Веб-інтерфейс фінансового прогнозування</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            /* Кава без молока (Dark Coffee / Espresso) */
+            --coffee-dark: #2C1A11;
+            --coffee-darker: #1C100A;
+            --coffee-espresso: #3D2517;
+
+            /* Кава з молоком (Milky Coffee / Latte / Cream) */
+            --coffee-light: #D5B99A;
+            --coffee-cream: #EADBC8;
+            --coffee-latte: #F5EBE0;
+
+            /* Accent & borders */
+            --coffee-accent: #8B5E3C;
+            --coffee-border: #CBB29C;
+
+            /* Neutral text */
+            --text-dark: #2C1A11;
+            --text-light: #F5EBE0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, var(--coffee-darker) 0%, var(--coffee-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--coffee-latte);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .control-panel {
+            background: var(--coffee-latte);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            height: fit-content;
+            border: 1px solid var(--coffee-light);
+        }
+
+        .control-panel h2 {
+            color: var(--coffee-dark);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--coffee-light);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--coffee-dark);
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--coffee-light);
+            background-color: var(--coffee-cream);
+            color: var(--coffee-dark);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+            font-family: inherit;
+        }
+
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--coffee-espresso);
+            background-color: var(--coffee-latte);
+        }
+
+        /* Prediction quality parameter styles */
+        .form-group input[type="range"] {
+            width: 70%;
+            margin-right: 10px;
+            accent-color: var(--coffee-accent);
+        }
+
+        .form-group input[type="number"] {
+            width: 100%;
+        }
+
+        .form-group span {
+            display: inline-block;
+            min-width: 40px;
+            font-weight: 600;
+            color: var(--coffee-accent);
+        }
+
+        .form-text {
+            font-size: 12px;
+            color: var(--coffee-accent);
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--coffee-espresso) 0%, var(--coffee-dark) 100%);
+            color: var(--coffee-latte);
+            border: 1px solid var(--coffee-light);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--coffee-accent) 0%, var(--coffee-espresso) 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #8B5E3C 0%, #5C3D24 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #A0522D 0%, #8B4513 100%);
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        .status.success {
+            background: #E8F5E9;
+            color: #1B5E20;
+            border-color: #C8E6C9;
+        }
+
+        .status.error {
+            background: #FFEBEE;
+            color: #C62828;
+            border-color: #FFCDD2;
+        }
+
+        .status.info {
+            background: var(--coffee-cream);
+            color: var(--coffee-dark);
+            border-color: var(--coffee-light);
+        }
+
+        .status.warning {
+            background: #FFF3E0;
+            color: #E65100;
+            border-color: #FFE0B2;
+        }
+
+        /* Tab Styles */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--coffee-light);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: var(--coffee-cream);
+            border: 1px solid var(--coffee-light);
+            color: var(--coffee-dark);
+            padding: 10px 15px;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab-btn:hover {
+            background: var(--coffee-light);
+            color: var(--coffee-darker);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--coffee-espresso) 0%, var(--coffee-dark) 100%);
+            color: var(--coffee-latte);
+            border-color: var(--coffee-espresso);
+        }
+
+        /* Fine-tuning Interface */
+        .terminal-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 15px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: var(--coffee-cream);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 1px solid var(--coffee-light);
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--coffee-accent) 0%, var(--coffee-espresso) 100%);
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--coffee-dark);
+            text-shadow: 1px 1px 1px var(--coffee-cream);
+        }
+
+        /* Bias correction info box */
+        .bias-info-box {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            font-size: 12px;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bias-info-box svg {
+            fill: #2E7D32;
+            flex-shrink: 0;
+        }
+
+        .chart-container {
+            background: var(--coffee-latte);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--coffee-light);
+        }
+
+        .chart-container h2 {
+            color: var(--coffee-dark);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--coffee-light);
+            padding-bottom: 10px;
+        }
+
+        #chart {
+            width: 100%;
+            height: 600px;
+        }
+
+        .data-info {
+            background: var(--coffee-cream);
+            border: 1px solid var(--coffee-light);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .data-info h3 {
+            color: var(--coffee-dark);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .data-info p {
+            margin-bottom: 5px;
+            color: var(--coffee-dark);
+        }
+
+        .data-info strong {
+            color: var(--coffee-darker);
+        }
+
+        /* Checkbox style for future forecast */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            background: var(--coffee-cream);
+            border: 2px dashed var(--coffee-accent);
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-group:hover {
+            border-color: var(--coffee-dark);
+            background: var(--coffee-latte);
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--coffee-accent);
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .checkbox-group label {
+            font-weight: 600;
+            color: var(--coffee-dark);
+            cursor: pointer;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Tomorrow's forecast styling */
+        .tomorrow-forecast-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, var(--coffee-espresso) 0%, var(--coffee-dark) 100%);
+            color: var(--coffee-latte);
+            border: 2px solid var(--coffee-accent);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tomorrow-forecast-box .badge {
+            background-color: var(--coffee-accent);
+            color: var(--coffee-latte);
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .tomorrow-forecast-box .price-item {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .tomorrow-forecast-box .change-value {
+            font-weight: bold;
+        }
+
+        .tomorrow-forecast-box .change-value.positive {
+            color: #66BB6A;
+        }
+
+        .tomorrow-forecast-box .change-value.negative {
+            color: #FF7043;
+        }
+
+        /* Comparison analysis styles */
+        .comparison-section {
+            background: var(--coffee-cream);
+            border: 1px solid var(--coffee-light);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-section h3 {
+            color: var(--coffee-dark);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .comparison-info {
+            background: var(--coffee-latte);
+            border: 1px solid var(--coffee-light);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid var(--coffee-light);
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--coffee-dark);
+        }
+
+        .comparison-table th {
+            background: var(--coffee-latte);
+            font-weight: 600;
+        }
+
+        .error-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .error-stat {
+            background: var(--coffee-latte);
+            border: 1px solid var(--coffee-light);
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .error-stat h4 {
+            color: var(--coffee-dark);
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .error-stat .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--coffee-accent);
+        }
+
+        .error-stat .unit {
+            font-size: 0.8rem;
+            color: var(--coffee-dark);
+            opacity: 0.7;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid var(--coffee-light);
+            border-top: 4px solid var(--coffee-espresso);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .model-info {
+            background: var(--coffee-cream);
+            border: 1px solid var(--coffee-light);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: var(--coffee-dark);
+        }
+
+        .model-info h3 {
+            color: var(--coffee-espresso);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .model-info p {
+            margin-bottom: 5px;
+        }
+
+        .model-info strong {
+            color: var(--coffee-darker);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .form-group select,
+            .form-group select option {
+                font-size: 12px;
+            }
+        }
+        .real-rate-row {
+            background-color: #c7eed8 !important;
+            font-weight: bold;
+        }
+        .real-rate-row td {
+            color: #1b5e20 !important;
+            border-color: #a3cfbb !important;
+        }
+        .forecast-row {
+            background-color: #f7eedf !important;
+        }
+        .forecast-row td {
+            color: var(--coffee-dark) !important;
+            border-color: var(--coffee-light) !important;
+        }
+
+        /* Exchange Tab Styling */
+        .exchange-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .exchange-wallet-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .exchange-card {
+            background: var(--coffee-cream);
+            border: 1px solid var(--coffee-light);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .exchange-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .exchange-card h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--coffee-accent);
+            margin-bottom: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .exchange-card .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--coffee-dark);
+        }
+
+        .position-log-box {
+            background: var(--coffee-latte);
+            border: 1px solid var(--coffee-light);
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 13px;
+            color: var(--text-dark);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .position-log-box h4 {
+            color: var(--coffee-accent);
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .position-log-box.active-pos {
+            border-left: 4px solid #26A69A;
+            background: #E8F5E9;
+            color: #1B5E20;
+        }
+
+        .position-log-box.active-pos h4 {
+            color: #1B5E20;
+        }
+
+        .trade-toggle-container {
+            display: flex;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--coffee-light);
+            background: var(--coffee-cream);
+        }
+
+        .trade-toggle-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            text-align: center;
+            background: transparent;
+            color: var(--coffee-dark);
+        }
+
+        .trade-toggle-btn:hover {
+            background: rgba(139, 94, 60, 0.1);
+        }
+
+        .trade-toggle-btn.active-buy {
+            background: #26A69A;
+            color: white;
+        }
+
+        .trade-toggle-btn.active-sell {
+            background: #EF5350;
+            color: white;
+        }
+
+        .trade-form-box {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .trade-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .trade-input-group label {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--coffee-dark);
+        }
+
+        .trade-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border: 2px solid var(--coffee-light);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--coffee-cream);
+        }
+
+        .trade-input-container input {
+            flex: 1;
+            border: none !important;
+            border-radius: 0 !important;
+            text-align: center;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: bold;
+            background-color: var(--coffee-cream);
+            color: var(--coffee-dark);
+            padding-right: 50px;
+        }
+
+        .trade-input-container input:focus {
+            outline: none;
+            background-color: var(--coffee-latte);
+        }
+
+        .trade-input-container .suffix {
+            position: absolute;
+            right: 55px;
+            font-weight: 700;
+            color: var(--coffee-accent);
+            font-size: 13px;
+            pointer-events: none;
+        }
+
+        .adjust-btn {
+            background: var(--coffee-light);
+            border: none;
+            color: var(--coffee-dark);
+            width: 40px;
+            height: 44px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .adjust-btn:hover {
+            background: var(--coffee-accent);
+            color: white;
+        }
+
+        .btn-trade-action {
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            color: white;
+            font-family: inherit;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-trade-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+
+        .btn-trade-action:active {
+            transform: translateY(0);
+        }
+
+        .btn-trade-action.buy-mode {
+            background: linear-gradient(135deg, #26A69A 0%, #00796B 100%);
+        }
+
+        .btn-trade-action.sell-mode {
+            background: linear-gradient(135deg, #EF5350 0%, #C62828 100%);
+        }
+
+        .btn-reset-game {
+            background: transparent;
+            border: 1px dashed var(--coffee-accent);
+            color: var(--coffee-accent);
+            padding: 8px;
+            font-size: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-reset-game:hover {
+            background: rgba(139, 94, 60, 0.1);
+            color: var(--coffee-dark);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Kronos — Веб-інтерфейс фінансового прогнозування</h1>
+            <p>Платформа інтелектуального аналізу та прогнозування свічкових графіків на базі ШІ</p>
+        </div>
+
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="tabs-container">
+                    <button class="tab-btn active" id="tab-forecast-btn" onclick="switchTab('forecast')">🔮 Прогнозування</button>
+                    <button class="tab-btn" id="tab-finetune-btn" onclick="switchTab('finetune')">⚙️ Донавчання</button>
+                    <button class="tab-btn" id="tab-exchange-btn" onclick="switchTab('exchange')">🏦 Біржа</button>
+                </div>
+
+                <!-- Forecast Tab Content -->
+                <div id="forecast-tab-content" class="tab-content">
+                    <!-- Model Selection -->
+                    <div class="form-group">
+                        <label for="model-select">Оберіть модель:</label>
+                        <select id="model-select">
+                            <option value="">Спочатку завантажте доступні моделі</option>
+                        </select>
+                        <small class="form-text">Виберіть модель Kronos для використання</small>
+                    </div>
+
+                    <!-- Device Selection -->
+                    <div class="form-group">
+                        <label for="device-select">Оберіть пристрій:</label>
+                        <select id="device-select">
+                            <option value="cpu">CPU</option>
+                            <option value="cuda">CUDA (NVIDIA GPU)</option>
+                            <option value="mps">MPS (Apple Silicon)</option>
+                        </select>
+                        <small class="form-text">Пристрій для розрахунків моделі</small>
+                    </div>
+
+                    <!-- Model Status -->
+                    <div id="model-status" class="status info" style="display: none;">
+                        Інформація про статус моделі
+                    </div>
+
+                    <!-- Load Model Button -->
+                    <button id="load-model-btn" class="btn btn-secondary">
+                        🔄 Завантажити модель
+                    </button>
+
+                    <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+
+                    <!-- Data File Selection -->
+                    <div class="form-group">
+                        <label for="data-file-select">Оберіть файл даних:</label>
+                        <select id="data-file-select">
+                            <option value="">Спочатку завантажте список файлів даних</option>
+                        </select>
+                        <small class="form-text">Виберіть CSV-файл із папки data</small>
+                    </div>
+
+                    <button id="load-data-btn" class="btn btn-secondary">
+                        📁 Завантажити дані
+                    </button>
+
+                    <!-- Data Information Display -->
+                    <div id="data-info" class="data-info" style="display: none;">
+                        <h3>📊 Інформація про дані</h3>
+                        <p><strong>Рядків:</strong> <span id="data-rows">-</span></p>
+                        <p><strong>Колонок:</strong> <span id="data-cols">-</span></p>
+                        <p><strong>Часовий діапазон:</strong> <span id="data-time-range">-</span></p>
+                        <p><strong>Діапазон цін:</strong> <span id="data-price-range">-</span></p>
+                        <p><strong>Таймфрейм:</strong> <span id="data-timeframe">-</span></p>
+                        <p><strong>Колонки прогнозування:</strong> <span id="data-prediction-cols">-</span></p>
+                    </div>
+
+                    <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+
+                    <!-- Bias Correction Checkbox -->
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="bias-correction-checkbox" checked>
+                        <div style="display: flex; flex-direction: column;">
+                            <label for="bias-correction-checkbox">⚙️ Корекція систематичної похибки (Bias Correction)</label>
+                            <small style="font-size: 11px; color: var(--coffee-dark); opacity: 0.8; margin-top: 4px; line-height: 1.3;">
+                                Автоматично коригує прогнозну лінію на основі середньої похибки моделі за останні 10 днів історії.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Prediction Parameters -->
+                    <div class="form-group">
+                        <label for="lookback">Розмір вікна історії (Lookback):</label>
+                        <input type="number" id="lookback" value="400">
+                        <small class="form-text">Кількість історичних точок на вході (наприклад, 400 для стандартного, 350 для тижневого BTC)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pred-len">Довжина прогнозу (Predict Window):</label>
+                        <input type="number" id="pred-len" value="120">
+                        <small class="form-text">Кількість майбутніх точок для прогнозування (наприклад, 120 для стандартного, 50 для тижневого BTC)</small>
+                    </div>
+
+                    <!-- Prediction Quality Parameters -->
+                    <div class="form-group">
+                        <label for="temperature">Температура прогнозування (T):</label>
+                        <input type="range" id="temperature" value="1.0" min="0.1" max="2.0" step="0.1">
+                        <span id="temperature-value">1.0</span>
+                        <small class="form-text">Контролює випадковість прогнозу: вищі значення роблять прогнози різноманітнішими, нижчі — консервативнішими</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="top-p">Параметр Nucleus Sampling (top_p):</label>
+                        <input type="range" id="top-p" value="0.9" min="0.1" max="1.0" step="0.1">
+                        <span id="top-p-value">0.9</span>
+                        <small class="form-text">Контролює різноманітність: вищі значення враховують ширший спектр ймовірностей</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sample-count">Кількість генерацій (семплів):</label>
+                        <input type="number" id="sample-count" value="1" min="1" max="5" step="1">
+                        <small class="form-text">Генерує кілька варіантів прогнозу для усереднення результату (рекомендовано 1-3)</small>
+                    </div>
+
+                    <button id="predict-btn" class="btn btn-success" disabled>
+                        🔮 Запустити прогнозування
+                    </button>
+                </div>
+
+                <!-- Finetune Tab Content -->
+                <div id="finetune-tab-content" class="tab-content" style="display: none;">
+                    <h2>⚙️ Донавчання моделі</h2>
+
+                    <div style="margin-bottom: 20px; font-size: 13px; color: var(--coffee-dark); line-height: 1.5;">
+                        <p>Тут ви можете донавчити модель <strong>BTC Daily</strong> на останніх актуальних даних, завантажених з біржі Binance.</p>
+                        <p style="margin-top: 5px; color: var(--coffee-accent);"><em>Примітка: Донавчання здійснюється на CPU. Зазвичай 5 епох виконуються за 30-60 секунд.</em></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="finetune-epochs">Кількість епох (Epochs):</label>
+                        <input type="number" id="finetune-epochs" value="5" min="1" max="50">
+                        <small class="form-text">Рекомендовано: 3–10 епох для щоденного оновлення свічок.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Цільова модель:</label>
+                        <input type="text" value="BTC Daily (Донавчена)" disabled style="opacity: 0.8; background-color: var(--coffee-cream); width: 100%; padding: 12px; border: 2px solid var(--coffee-light); border-radius: 8px;">
+                    </div>
+
+                    <!-- Progress Indicator -->
+                    <div id="finetune-progress-section" style="display: none; margin-top: 20px;">
+                        <label style="font-weight: 600; margin-bottom: 8px; display: block; color: var(--coffee-dark);">Прогрес навчання:</label>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="finetune-progress-bar" style="width: 0%;"></div>
+                            <div class="progress-bar-text" id="finetune-progress-text">0% (Епоха 0/0)</div>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Output -->
+                    <div id="finetune-log-section" style="display: none; margin-top: 15px;">
+                        <label style="font-weight: 600; margin-bottom: 8px; display: block; color: var(--coffee-dark);">Лог консолі (термінал):</label>
+                        <div class="terminal-box" id="finetune-terminal">Очікування запуску тренування...</div>
+                    </div>
+
+                    <div class="status success" id="finetune-status-success" style="display: none; margin-bottom: 20px;">
+                        ✅ Донавчання успішно завершено! Модель автоматично перезавантажена з новими вагами.
+                    </div>
+
+                    <div class="status error" id="finetune-status-error" style="display: none; margin-bottom: 20px;">
+                        ❌ Помилка під час навчання: <span id="finetune-error-msg">-</span>
+                    </div>
+
+                    <!-- Buttons -->
+                    <button id="start-finetune-btn" class="btn btn-success">
+                        🚀 Запустити донавчання
+                    </button>
+
+                    <button id="stop-finetune-btn" class="btn btn-warning" style="display: none;">
+                        ⏹️ Зупинити процес
+                    </button>
+                </div>
+
+                <!-- Exchange Tab Content -->
+                <div id="exchange-tab-content" class="tab-content" style="display: none;">
+                    <h2>🏦 Симулятор торгівлі BTC</h2>
+                    
+                    <div class="exchange-container">
+                        <!-- Wallet & Price Display -->
+                        <div class="exchange-wallet-grid">
+                            <div class="exchange-card">
+                                <h4>Мій Гаманець (USD)</h4>
+                                <div id="wallet-usd-balance" class="value">$100.00</div>
+                            </div>
+                            <div class="exchange-card">
+                                <h4>Мій Баланс (BTC)</h4>
+                                <div id="wallet-btc-balance" class="value">0.00000000</div>
+                            </div>
+                            <div class="exchange-card full-width" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;">
+                                <h4 style="margin-bottom: 0;">Поточний курс BTC:</h4>
+                                <div id="exchange-btc-price" class="value" style="color: var(--coffee-accent); font-size: 20px;">$-.--</div>
+                            </div>
+                        </div>
+
+                        <!-- Active Position Log -->
+                        <div id="exchange-position-log" class="position-log-box">
+                            <h4>Статус операцій</h4>
+                            <div id="exchange-position-details">Активні операції відсутні</div>
+                        </div>
+
+                        <!-- Trade Toggle (Buy / Sell) -->
+                        <div class="trade-toggle-container">
+                            <button id="toggle-buy-btn" class="trade-toggle-btn active-buy" onclick="setExchangeMode('buy')">Купівля</button>
+                            <button id="toggle-sell-btn" class="trade-toggle-btn" onclick="setExchangeMode('sell')">Продаж</button>
+                        </div>
+
+                        <!-- Trade Input and Button -->
+                        <div class="trade-form-box">
+                            <div class="trade-input-group">
+                                <label for="trade-btc-amount">Кількість біткоїнів:</label>
+                                <div class="trade-input-container">
+                                    <button class="adjust-btn" onclick="adjustBtcAmount(-0.0001)">-</button>
+                                    <input type="text" id="trade-btc-amount" placeholder="0.00000000">
+                                    <button class="adjust-btn" onclick="adjustBtcAmount(0.0001)">+</button>
+                                    <span class="suffix">BTC</span>
+                                </div>
+                                <div id="trade-equivalent-box" style="margin-top: 8px; font-size: 13px; color: var(--coffee-dark); font-weight: bold;">
+                                    Еквівалент: <span id="trade-equivalent-usd">$0.00</span>
+                                </div>
+                                <small class="form-text" id="trade-fee-info">Комісія біржі: 0.1% (кнопками регулюється по 0.0001 BTC)</small>
+                            </div>
+                            
+                            <button id="trade-action-btn" class="btn-trade-action buy-mode" onclick="executeTrade()">
+                                Купити BTC
+                            </button>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <button class="btn-reset-game" onclick="resetGameBalance()">
+                                🔄 Скинути баланс до $100.00
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Status -->
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Тривають обчислення, зачекайте, будь ласка...</p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>📈 Графік результатів прогнозування</h2>
+                <!-- Tomorrow Forecast Line -->
+                <div id="tomorrow-forecast-box" class="tomorrow-forecast-box" style="display: none;"></div>
+                
+                <!-- Today's Rate and Forecasts Section -->
+                <div id="today-rate-section" class="comparison-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
+                    <h3>📅 Курс на сьогоднішній день (BTC)</h3>
+                    <div id="today-rate-info" style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; font-size: 14px; background: var(--coffee-latte); padding: 12px; border-radius: 6px; border: 1px solid var(--coffee-light); color: var(--coffee-dark);">
+                        <span>Дата: <strong id="today-date-text">-</strong></span>
+                        <span>Відкриття: <strong id="today-open-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                        <span>Макс: <strong id="today-high-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                        <span>Мін: <strong id="today-low-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                        <span>Закриття: <strong id="today-close-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                    </div>
+                    
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Джерело / Дата створення прогнозу</th>
+                                    <th>Ціна відкриття ($)</th>
+                                    <th>Максимум ($)</th>
+                                    <th>Мінімум ($)</th>
+                                    <th>Ціна закриття ($)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="today-forecasts-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="chart"></div>
+
+                <div id="bias-info-box" class="bias-info-box" style="display: none;">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h-2v-2h4v8zm0-10h-2V5h-2V3h4v4z" /></svg>
+                    <div>
+                        <strong>Застосовано коригування систематичної похибки (Bias Correction)</strong> на основі останніх 10 днів:
+                        <span id="bias-info-offsets"></span>
+                    </div>
+                </div>
+
+                <!-- Comparison Analysis -->
+                <div id="comparison-section" class="comparison-section" style="display: none;">
+                    <h3>📊 Порівняння прогнозу з реальними даними</h3>
+                    <div id="comparison-info" class="comparison-info">
+                        <p><strong>Тип прогнозу:</strong> <span id="prediction-type">-</span></p>
+                        <p><strong>Дані для порівняння:</strong> <span id="comparison-data">-</span></p>
+                    </div>
+
+                    <div class="error-stats">
+                        <div class="error-stat">
+                            <h4>Середня абсолютна помилка (MAE)</h4>
+                            <div class="value" id="mae">-</div>
+                            <div class="unit">Одиниці ціни</div>
+                        </div>
+                        <div class="error-stat">
+                            <h4>Середньоквадратична помилка (RMSE)</h4>
+                            <div class="value" id="rmse">-</div>
+                            <div class="unit">Одиниці ціни</div>
+                        </div>
+                        <div class="error-stat">
+                            <h4>Середня відсоткова помилка (MAPE)</h4>
+                            <div class="value" id="mape">-</div>
+                            <div class="unit">%</div>
+                        </div>
+                    </div>
+
+                    <div class="error-details">
+                        <h4>Детальні дані порівняння:</h4>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <table class="comparison-table">
+                                <thead>
+                                    <tr>
+                                        <th>Час</th>
+                                        <th>Реальне відкр.</th>
+                                        <th>Прогноз відкр.</th>
+                                        <th>Реальний Max</th>
+                                        <th>Прогноз Max</th>
+                                        <th>Реальний Min</th>
+                                        <th>Прогноз Min</th>
+                                        <th>Реальне закр.</th>
+                                        <th>Прогноз закр.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comparison-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forecast Table Section -->
+                <div id="forecast-table-section" class="comparison-section" style="display: none; margin-top: 25px;">
+                    <h3>📋 Детальний щоденний прогноз</h3>
+                    <div style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Ціна відкриття ($)</th>
+                                    <th>Максимум ($)</th>
+                                    <th>Мінімум ($)</th>
+                                    <th>Ціна закриття ($)</th>
+                                    <th>Добова зміна (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="forecast-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentDataFile = null;
+        let currentDataInfo = null;
+        let availableModels = [];
+        let modelLoaded = false;
+
+        // Initialize after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        // Initialize application
+        async function initializeApp() {
+            console.log('🚀 Initializing Kronos Web UI...');
+
+            // Load available models
+            await loadAvailableModels();
+
+            // Load data file list
+            await loadDataFiles();
+
+            // Set up event listeners
+            setupEventListeners();
+
+            // Load today's rate and forecasts
+            await loadTodayData();
+
+            // Load Exchange Game State and start price polling
+            loadGameState();
+            startBtcPricePolling();
+
+            // Setup input validation for trade-btc-amount to prevent invalid input
+            const btcInput = document.getElementById('trade-btc-amount');
+            if (btcInput) {
+                btcInput.addEventListener('input', function(e) {
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) {
+                        clean = parts[0] + '.' + parts.slice(1).join('');
+                    }
+                    if (parts[1] && parts[1].length > 8) {
+                        clean = parts[0] + '.' + parts[1].substring(0, 8);
+                    }
+                    this.value = clean;
+                    // Update USD equivalent
+                    updateEquivalent();
+                });
+            }
+
+            console.log('✅ Application initialization completed');
+        }
+
+        // Load available models
+        async function loadAvailableModels() {
+            try {
+                const response = await axios.get('/api/available-models');
+                if (response.data.model_available) {
+                    availableModels = response.data.models;
+                    populateModelSelect();
+                    console.log('✅ Available models loaded successfully:', availableModels);
+                } else {
+                    console.warn('⚠️ Kronos model library not available');
+                    showStatus('warning', 'Kronos model library not available, will use simulated prediction');
+                }
+            } catch (error) {
+                console.error('❌ Failed to load available models:', error);
+                showStatus('error', 'Failed to load available models');
+            }
+        }
+
+        // Populate model selection dropdown
+        function populateModelSelect() {
+            const modelSelect = document.getElementById('model-select');
+            modelSelect.innerHTML = '<option value="">Будь ласка, оберіть модель</option>';
+
+            Object.entries(availableModels).forEach(([key, model]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${model.name} (${model.params}) - ${model.description}`;
+                if (key === 'btc-daily-finetuned') {
+                    option.selected = true;
+                }
+                modelSelect.appendChild(option);
+            });
+        }
+
+        // Load model
+        async function loadModel() {
+            const modelKey = document.getElementById('model-select').value;
+            const device = document.getElementById('device-select').value;
+
+            if (!modelKey) {
+                showStatus('error', 'Будь ласка, оберіть модель для завантаження');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                document.getElementById('load-model-btn').disabled = true;
+
+                const response = await axios.post('/api/load-model', {
+                    model_key: modelKey,
+                    device: device
+                });
+
+                if (response.data.success) {
+                    modelLoaded = true;
+                    showStatus('success', response.data.message);
+                    updateModelStatus();
+                    document.getElementById('predict-btn').disabled = false;
+                    console.log('✅ Model loaded successfully:', response.data.model_info);
+                } else {
+                    showStatus('error', response.data.error);
+                }
+            } catch (error) {
+                console.error('❌ Model loading failed:', error);
+                showStatus('error', `Model loading failed: ${error.response?.data?.error || error.message}`);
+            } finally {
+                showLoading(false);
+                document.getElementById('load-model-btn').disabled = false;
+            }
+        }
+
+        // Update model status
+        async function updateModelStatus() {
+            try {
+                const response = await axios.get('/api/model-status');
+                const status = response.data;
+
+                if (status.loaded) {
+                    showStatus('success', `Модель завантажено: ${status.current_model.name} на пристрої ${status.current_model.device}`);
+                } else if (status.available) {
+                    showStatus('info', 'Модель доступна, але не завантажена');
+                } else {
+                    showStatus('warning', 'Бібліотека моделей недоступна');
+                }
+            } catch (error) {
+                console.error('❌ Failed to get model status:', error);
+            }
+        }
+
+        // Load data file list
+        async function loadDataFiles(selectPath = null) {
+            try {
+                const response = await axios.get('/api/data-files');
+                const dataFiles = response.data;
+
+                const dataFileSelect = document.getElementById('data-file-select');
+                dataFileSelect.innerHTML = '<option value="">Будь ласка, оберіть файл даних</option>';
+
+                // Determine the best file to select by default
+                let defaultPath = selectPath;
+                if (!defaultPath) {
+                    const latestFile = dataFiles.find(f => f.name === 'btc_history_daily_latest.csv');
+                    if (latestFile) {
+                        defaultPath = latestFile.path;
+                    } else {
+                        const baseFile = dataFiles.find(f => f.name === 'btc_history_daily.csv');
+                        if (baseFile) {
+                            defaultPath = baseFile.path;
+                        }
+                    }
+                }
+
+                dataFiles.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file.path;
+                    option.textContent = `${file.name} (${file.size})`;
+                    if (file.path === defaultPath) {
+                        option.selected = true;
+                    }
+                    dataFileSelect.appendChild(option);
+                });
+
+                console.log('✅ Data file list loaded successfully:', dataFiles);
+
+                // Automatically load data if a default path is selected and we don't have one yet
+                if (defaultPath && !currentDataFile) {
+                    dataFileSelect.value = defaultPath;
+                    loadData();
+                }
+            } catch (error) {
+                console.error('❌ Failed to load data file list:', error);
+                showStatus('error', 'Failed to load data file list');
+            }
+        }
+
+        // Load data file
+        async function loadData() {
+            const filePath = document.getElementById('data-file-select').value;
+
+            if (!filePath) {
+                showStatus('error', 'Будь ласка, оберіть файл даних для завантаження');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                document.getElementById('load-data-btn').disabled = true;
+
+                const response = await axios.post('/api/load-data', {
+                    file_path: filePath
+                });
+
+                if (response.data.success) {
+                    currentDataFile = filePath;
+                    currentDataInfo = response.data.data_info;
+                    showDataInfo(response.data.data_info);
+                    showStatus('success', response.data.message);
+
+                    // Update prediction button status
+                    if (modelLoaded) {
+                        document.getElementById('predict-btn').disabled = false;
+                    }
+
+                    // Reload today's rate and forecasts
+                    await loadTodayData();
+
+                    console.log('✅ Data loaded successfully:', response.data.data_info);
+                } else {
+                    showStatus('error', response.data.error);
+                }
+            } catch (error) {
+                console.error('❌ Data loading failed:', error);
+                showStatus('error', `Data loading failed: ${error.response?.data?.error || error.message}`);
+            } finally {
+                showLoading(false);
+                document.getElementById('load-data-btn').disabled = false;
+            }
+        }
+
+        // Display data information
+        function showDataInfo(dataInfo) {
+            document.getElementById('data-info').style.display = 'block';
+            document.getElementById('data-rows').textContent = dataInfo.rows;
+            document.getElementById('data-cols').textContent = dataInfo.columns.length;
+            document.getElementById('data-time-range').textContent = `${dataInfo.start_date} по ${dataInfo.end_date}`;
+            document.getElementById('data-price-range').textContent = `${dataInfo.price_range.min.toFixed(4)} - ${dataInfo.price_range.max.toFixed(4)}`;
+            document.getElementById('data-timeframe').textContent = dataInfo.timeframe;
+            document.getElementById('data-prediction-cols').textContent = dataInfo.prediction_columns.join(', ');
+
+        }
+
+        // Start prediction
+        async function startPrediction() {
+            if (!currentDataFile) {
+                showStatus('error', 'Будь ласка, спочатку завантажте файл даних');
+                return;
+            }
+
+            if (!modelLoaded) {
+                showStatus('error', 'Будь ласка, спочатку завантажте модель');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                document.getElementById('predict-btn').disabled = true;
+
+                const lookback = parseInt(document.getElementById('lookback').value);
+                const predLen = parseInt(document.getElementById('pred-len').value);
+
+                // Get prediction quality parameters
+                const temperature = parseFloat(document.getElementById('temperature').value);
+                const topP = parseFloat(document.getElementById('top-p').value);
+                const sampleCount = parseInt(document.getElementById('sample-count').value);
+
+                const biasCorrection = document.getElementById('bias-correction-checkbox')?.checked;
+
+                let predictionParams = {
+                    file_path: currentDataFile,
+                    lookback: lookback,
+                    pred_len: predLen,
+                    start_date: "", // Always forecast real future (latest data)
+                    temperature: temperature,
+                    top_p: topP,
+                    sample_count: sampleCount,
+                    bias_correction: biasCorrection
+                };
+
+                console.log('🚀 Starting prediction, parameters:', predictionParams);
+
+                const response = await axios.post('/api/predict', predictionParams);
+
+                if (response.data.success) {
+                    // Check if the backend updated the daily file with new Binance data
+                    if (response.data.data_updated) {
+                        currentDataFile = response.data.new_file_path;
+                        currentDataInfo = response.data.new_data_info;
+                        showDataInfo(response.data.new_data_info);
+                        // Reload the available data files list and select the new file path
+                        await loadDataFiles(response.data.new_file_path);
+                    }
+
+                    // Display prediction results
+                    displayPredictionResult(response.data);
+                    showStatus('success', response.data.message);
+                    
+                    // Reload today's rate and forecasts
+                    await loadTodayData();
+                } else {
+                    showStatus('error', response.data.error);
+                }
+            } catch (error) {
+                console.error('❌ Prediction failed:', error);
+                showStatus('error', `Prediction failed: ${error.response?.data?.error || error.message}`);
+            } finally {
+                showLoading(false);
+                document.getElementById('predict-btn').disabled = false;
+            }
+        }
+
+        // Display prediction results
+        function displayPredictionResult(result) {
+            // Display chart
+            const chartData = JSON.parse(result.chart);
+            Plotly.newPlot('chart', chartData.data, chartData.layout);
+
+            // Display Tomorrow Forecast Box
+            if (result.prediction_results && result.prediction_results.length > 0) {
+                const tomorrow = result.prediction_results[0];
+                const lastClose = result.last_historical_close;
+                const changePct = ((tomorrow.close - lastClose) / lastClose) * 100;
+
+                let changeClass = 'change-value';
+                let changeSign = '';
+                let emoji = '⚪';
+                if (changePct > 0) {
+                    changeClass += ' positive';
+                    changeSign = '+';
+                    emoji = '🟢';
+                } else if (changePct < 0) {
+                    changeClass += ' negative';
+                    emoji = '🔴';
+                }
+
+                const formattedDate = new Date(tomorrow.timestamp).toLocaleDateString();
+
+                document.getElementById('tomorrow-forecast-box').innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="badge">Прогноз на завтра</span>
+                        <strong style="color: var(--coffee-light);">${formattedDate}:</strong>
+                    </div>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <span>Відкриття: <span class="price-item">$${tomorrow.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
+                        <span>Макс: <span class="price-item">$${tomorrow.high.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
+                        <span>Мін: <span class="price-item">$${tomorrow.low.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
+                        <span>Закриття: <span class="price-item" style="color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.3);">$${tomorrow.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
+                        <span class="${changeClass}">${emoji} ${changeSign}${changePct.toFixed(2)}%</span>
+                    </div>
+                `;
+                document.getElementById('tomorrow-forecast-box').style.display = 'flex';
+            } else {
+                document.getElementById('tomorrow-forecast-box').style.display = 'none';
+            }
+
+            // Display Forecast Table
+            if (result.prediction_results && result.prediction_results.length > 0) {
+                const tbody = document.getElementById('forecast-tbody');
+                tbody.innerHTML = '';
+
+                let prevClose = result.last_historical_close;
+
+                result.prediction_results.forEach(pred => {
+                    const changePct = ((pred.close - prevClose) / prevClose) * 100;
+
+                    let changeSign = '';
+                    let emoji = '⚪';
+                    let changeColor = 'inherit';
+                    if (changePct > 0) {
+                        changeSign = '+';
+                        emoji = '🟢';
+                        changeColor = '#26A69A';
+                    } else if (changePct < 0) {
+                        emoji = '🔴';
+                        changeColor = '#EF5350';
+                    }
+
+                    const row = document.createElement('tr');
+                    const formattedDate = new Date(pred.timestamp).toLocaleDateString();
+                    row.innerHTML = `
+                        <td><strong>${formattedDate}</strong></td>
+                        <td>$${pred.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>$${pred.high.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>$${pred.low.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td><strong>$${pred.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+                        <td style="color: ${changeColor}; font-weight: bold;">${emoji} ${changeSign}${changePct.toFixed(2)}%</td>
+                    `;
+                    tbody.appendChild(row);
+
+                    prevClose = pred.close;
+                });
+
+                document.getElementById('forecast-table-section').style.display = 'block';
+            } else {
+                document.getElementById('forecast-table-section').style.display = 'none';
+            }
+
+            // Display bias correction info (if applied)
+            if (result.bias_correction_applied && result.bias_offsets) {
+                const offsets = result.bias_offsets;
+                document.getElementById('bias-info-offsets').innerHTML = `
+                    Open: <span style="font-weight:bold;">${offsets.open >= 0 ? '+' : ''}${offsets.open.toFixed(2)}$</span>, 
+                    High: <span style="font-weight:bold;">${offsets.high >= 0 ? '+' : ''}${offsets.high.toFixed(2)}$</span>, 
+                    Low: <span style="font-weight:bold;">${offsets.low >= 0 ? '+' : ''}${offsets.low.toFixed(2)}$</span>, 
+                    Close: <span style="font-weight:bold;">${offsets.close >= 0 ? '+' : ''}${offsets.close.toFixed(2)}$</span>
+                `;
+                document.getElementById('bias-info-box').style.display = 'flex';
+            } else {
+                document.getElementById('bias-info-box').style.display = 'none';
+            }
+
+            // Display comparison analysis (if actual data exists)
+            if (result.has_comparison) {
+                displayComparisonAnalysis(result);
+            } else {
+                document.getElementById('comparison-section').style.display = 'none';
+            }
+        }
+
+        // Display comparison analysis
+        function displayComparisonAnalysis(result) {
+            document.getElementById('comparison-section').style.display = 'block';
+
+            // Update comparison information
+            document.getElementById('prediction-type').textContent = result.prediction_type;
+            document.getElementById('comparison-data').textContent = `${result.actual_data.length} фактичних точок даних`;
+
+            // Calculate error statistics
+            const errorStats = getPredictionQuality(result.prediction_results, result.actual_data);
+
+            // Display error statistics
+            document.getElementById('mae').textContent = errorStats.mae.toFixed(4);
+            document.getElementById('rmse').textContent = errorStats.rmse.toFixed(4);
+            document.getElementById('mape').textContent = errorStats.mape.toFixed(2);
+
+            // Fill comparison table
+            fillComparisonTable(result.prediction_results, result.actual_data);
+        }
+
+        // Calculate prediction quality metrics
+        function getPredictionQuality(predictions, actuals) {
+            if (!predictions || !actuals || predictions.length === 0 || actuals.length === 0) {
+                return {
+                    mae: 0,
+                    rmse: 0,
+                    mape: 0
+                };
+            }
+
+            const minLen = Math.min(predictions.length, actuals.length);
+            let mae = 0,
+                rmse = 0,
+                mape = 0;
+
+            for (let i = 0; i < minLen; i++) {
+                const pred = predictions[i];
+                const act = actuals[i];
+
+                // Use closing price to calculate errors
+                const error = Math.abs(pred.close - act.close);
+                const percentError = (error / act.close) * 100;
+
+                mae += error;
+                rmse += error * error;
+                mape += percentError;
+            }
+
+            mae /= minLen;
+            rmse = Math.sqrt(rmse / minLen);
+            mape /= minLen;
+
+            return {
+                mae,
+                rmse,
+                mape
+            };
+        }
+
+        // Fill comparison table
+        function fillComparisonTable(predictions, actuals) {
+            const tbody = document.getElementById('comparison-tbody');
+            tbody.innerHTML = '';
+
+            const minLen = Math.min(predictions.length, actuals.length);
+
+            for (let i = 0; i < minLen; i++) {
+                const pred = predictions[i];
+                const act = actuals[i];
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(pred.timestamp).toLocaleString()}</td>
+                    <td>${act.open.toFixed(4)}</td>
+                    <td>${pred.open.toFixed(4)}</td>
+                    <td>${act.high.toFixed(4)}</td>
+                    <td>${pred.high.toFixed(4)}</td>
+                    <td>${act.low.toFixed(4)}</td>
+                    <td>${pred.low.toFixed(4)}</td>
+                    <td>${act.close.toFixed(4)}</td>
+                    <td>${pred.close.toFixed(4)}</td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        // Fetch and display today's BTC rate and past forecasts
+        async function loadTodayData() {
+            try {
+                const response = await axios.get('/api/today-data');
+                if (response.data.success) {
+                    displayTodayData(response.data);
+                }
+            } catch (error) {
+                console.error('❌ Failed to load today\'s data:', error);
+            }
+        }
+
+        // Display today's BTC rate and past forecasts in the table
+        function displayTodayData(data) {
+            if (!data.actual_rate) {
+                document.getElementById('today-rate-section').style.display = 'none';
+                return;
+            }
+            
+            const rate = data.actual_rate;
+            const formattedDate = new Date(rate.date).toLocaleDateString();
+            
+            document.getElementById('today-date-text').textContent = formattedDate;
+            document.getElementById('today-open-text').textContent = `$${rate.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('today-high-text').textContent = `$${rate.high.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('today-low-text').textContent = `$${rate.low.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('today-close-text').textContent = `$${rate.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            const tbody = document.getElementById('today-forecasts-tbody');
+            tbody.innerHTML = '';
+            
+            // Add real course row first
+            const realRow = document.createElement('tr');
+            realRow.className = 'real-rate-row';
+            realRow.innerHTML = `
+                <td><strong>Дійсний курс (Binance)</strong></td>
+                <td>$${rate.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>$${rate.high.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>$${rate.low.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>$${rate.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            `;
+            tbody.appendChild(realRow);
+            
+            // Add all forecast rows
+            if (data.forecasts && data.forecasts.length > 0) {
+                data.forecasts.forEach(pred => {
+                    const row = document.createElement('tr');
+                    row.className = 'forecast-row';
+                    row.innerHTML = `
+                        <td>Прогноз від ${pred.run_timestamp} (${pred.bias_correction ? 'з BC' : 'без BC'})</td>
+                        <td>$${pred.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>$${pred.high.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>$${pred.low.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>$${pred.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="5" style="text-align: center; color: var(--coffee-accent); font-style: italic; padding: 15px;">
+                        Немає збережених прогнозів на цю дату
+                    </td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+            
+            document.getElementById('today-rate-section').style.display = 'block';
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Load model button
+            document.getElementById('load-model-btn').addEventListener('click', loadModel);
+
+            // Load data button
+            document.getElementById('load-data-btn').addEventListener('click', loadData);
+
+            // Prediction button
+            document.getElementById('predict-btn').addEventListener('click', startPrediction);
+
+            // Fine-tuning buttons
+            document.getElementById('start-finetune-btn').addEventListener('click', startFinetune);
+            document.getElementById('stop-finetune-btn').addEventListener('click', stopFinetune);
+
+            // Prediction quality parameter sliders
+            document.getElementById('temperature').addEventListener('input', function() {
+                document.getElementById('temperature-value').textContent = this.value;
+            });
+
+            document.getElementById('top-p').addEventListener('input', function() {
+                document.getElementById('top-p-value').textContent = this.value;
+            });
+
+
+        }
+
+        // Display status information
+        function showStatus(type, message) {
+            const statusDiv = document.getElementById('model-status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+
+            // Auto-hide
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show/hide loading status
+        function showLoading(show) {
+            const loadingDiv = document.getElementById('loading');
+            if (show) {
+                loadingDiv.classList.add('show');
+            } else {
+                loadingDiv.classList.remove('show');
+            }
+        }
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+
+            if (tabId === 'forecast') {
+                document.getElementById('tab-forecast-btn').classList.add('active');
+                document.getElementById('forecast-tab-content').style.display = 'block';
+            } else if (tabId === 'finetune') {
+                document.getElementById('tab-finetune-btn').classList.add('active');
+                document.getElementById('finetune-tab-content').style.display = 'block';
+                checkFinetuneStatus();
+            } else if (tabId === 'exchange') {
+                document.getElementById('tab-exchange-btn').classList.add('active');
+                document.getElementById('exchange-tab-content').style.display = 'block';
+                updateExchangeUI();
+            }
+        }
+
+        // Exchange Game Variables
+        let walletUsd = 100.00;
+        let walletBtc = 0.00000000;
+        let currentBtcPrice = 0.00;
+        let exchangeMode = 'buy'; // 'buy' or 'sell'
+        let activePosition = null; // { btcAmount, purchaseDate, purchasePrice }
+
+        // Load Game State from localStorage
+        function loadGameState() {
+            const savedUsd = localStorage.getItem('exchange_wallet_usd');
+            const savedBtc = localStorage.getItem('exchange_wallet_btc');
+            const savedPosition = localStorage.getItem('exchange_active_position');
+
+            if (savedUsd !== null) walletUsd = parseFloat(savedUsd);
+            if (savedBtc !== null) walletBtc = parseFloat(savedBtc);
+            if (savedPosition !== null) activePosition = JSON.parse(savedPosition);
+
+            updateExchangeUI();
+        }
+
+        // Save Game State to localStorage
+        function saveGameState() {
+            localStorage.setItem('exchange_wallet_usd', walletUsd.toString());
+            localStorage.setItem('exchange_wallet_btc', walletBtc.toString());
+            if (activePosition) {
+                localStorage.setItem('exchange_active_position', JSON.stringify(activePosition));
+            } else {
+                localStorage.removeItem('exchange_active_position');
+            }
+        }
+
+        // Update Exchange UI Elements
+        function updateExchangeUI() {
+            // Update Balance Displays
+            const usdEl = document.getElementById('wallet-usd-balance');
+            const btcEl = document.getElementById('wallet-btc-balance');
+            const priceEl = document.getElementById('exchange-btc-price');
+            
+            if (usdEl) usdEl.textContent = `$${walletUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (btcEl) btcEl.textContent = walletBtc.toFixed(8);
+            if (priceEl) {
+                if (currentBtcPrice > 0) {
+                    priceEl.textContent = `$${currentBtcPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                } else {
+                    priceEl.textContent = '$-.--';
+                }
+            }
+
+            // Update Position Status Log
+            const detailsEl = document.getElementById('exchange-position-details');
+            const logBoxEl = document.getElementById('exchange-position-log');
+            if (detailsEl && logBoxEl) {
+                if (walletBtc > 0 && activePosition) {
+                    logBoxEl.className = 'position-log-box active-pos';
+                    detailsEl.innerHTML = `
+                        <div>Кількість BTC в утриманні: <strong>${activePosition.btcAmount.toFixed(8)} BTC</strong></div>
+                        <div style="margin-top: 4px;">Дата купівлі: <strong>${activePosition.purchaseDate}</strong></div>
+                        <div style="margin-top: 4px;">Курс купівлі: <strong>$${activePosition.purchasePrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></div>
+                    `;
+                } else {
+                    logBoxEl.className = 'position-log-box';
+                    detailsEl.textContent = 'Активні операції відсутні';
+                }
+            }
+        }
+
+        // Change mode: 'buy' or 'sell'
+        function setExchangeMode(mode) {
+            exchangeMode = mode;
+            const buyToggle = document.getElementById('toggle-buy-btn');
+            const sellToggle = document.getElementById('toggle-sell-btn');
+            const actionBtn = document.getElementById('trade-action-btn');
+
+            if (mode === 'buy') {
+                buyToggle.className = 'trade-toggle-btn active-buy';
+                sellToggle.className = 'trade-toggle-btn';
+                actionBtn.className = 'btn-trade-action buy-mode';
+                actionBtn.textContent = 'Купити BTC';
+            } else {
+                buyToggle.className = 'trade-toggle-btn';
+                sellToggle.className = 'trade-toggle-btn active-sell';
+                actionBtn.className = 'btn-trade-action sell-mode';
+                actionBtn.textContent = 'Продати BTC';
+            }
+            updateEquivalent();
+        }
+
+        // Execute Buy or Sell Trade
+        function executeTrade() {
+            const amountInput = document.getElementById('trade-btc-amount');
+            const amount = parseFloat(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                alert('Будь ласка, введіть коректну кількість BTC для здійснення операції.');
+                return;
+            }
+
+            if (currentBtcPrice <= 0) {
+                alert('Не вдалося отримати актуальний курс біткоїна. Перевірте з\'єднання.');
+                return;
+            }
+
+            if (exchangeMode === 'buy') {
+                const totalCost = amount * currentBtcPrice * 1.001; // includes 0.1% fee
+                if (totalCost > walletUsd) {
+                    alert(`Недостатньо коштів на балансі! Вартість купівлі з комісією 0.1% складає $${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}, а на вашому балансі $${walletUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}.`);
+                    return;
+                }
+
+                // Deduct USD, Add BTC
+                walletUsd -= totalCost;
+                
+                // Calculate weighted average purchase price if already holding some BTC
+                if (walletBtc > 0 && activePosition) {
+                    const newTotalBtc = walletBtc + amount;
+                    const weightedPrice = ((walletBtc * activePosition.purchasePrice) + (amount * currentBtcPrice)) / newTotalBtc;
+                    activePosition = {
+                        btcAmount: newTotalBtc,
+                        purchaseDate: new Date().toLocaleString(),
+                        purchasePrice: weightedPrice
+                    };
+                } else {
+                    activePosition = {
+                        btcAmount: amount,
+                        purchaseDate: new Date().toLocaleString(),
+                        purchasePrice: currentBtcPrice
+                    };
+                }
+
+                walletBtc += amount;
+                saveGameState();
+                alert(`Успішно куплено ${amount.toFixed(8)} BTC за курсом $${currentBtcPrice.toLocaleString()} (комісія: $${(amount * currentBtcPrice * 0.001).toFixed(2)}).`);
+            } else {
+                // Sell Mode
+                if (amount > walletBtc) {
+                    alert(`Недостатньо біткоїнів на балансі! Ви намагаєтесь продати ${amount.toFixed(8)} BTC, але на вашому балансі лише ${walletBtc.toFixed(8)} BTC.`);
+                    return;
+                }
+
+                const totalRevenue = amount * currentBtcPrice * 0.999; // deducts 0.1% fee
+                
+                // Deduct BTC, Add USD
+                walletBtc -= amount;
+                walletUsd += totalRevenue;
+
+                if (walletBtc <= 0.00000001) {
+                    walletBtc = 0; // prevent floating point issues
+                    activePosition = null;
+                } else if (activePosition) {
+                    activePosition.btcAmount = walletBtc;
+                }
+
+                saveGameState();
+                alert(`Успішно продано ${amount.toFixed(8)} BTC за курсом $${currentBtcPrice.toLocaleString()} (отримано: $${totalRevenue.toFixed(2)}, комісія: $${(amount * currentBtcPrice * 0.001).toFixed(2)}).`);
+            }
+
+            amountInput.value = ''; // clear input field
+            updateExchangeUI();
+            updateEquivalent();
+        }
+
+        // Format number to decimal string avoiding scientific notation
+        function formatBtcString(val) {
+            if (val <= 0 || isNaN(val)) return '';
+            let str = val.toFixed(8);
+            while (str.endsWith('0') && str.includes('.')) {
+                str = str.slice(0, -1);
+            }
+            if (str.endsWith('.')) {
+                str = str.slice(0, -1);
+            }
+            return str;
+        }
+
+        // Increment/decrement BTC amount by custom step
+        function adjustBtcAmount(delta) {
+            const input = document.getElementById('trade-btc-amount');
+            let current = parseFloat(input.value);
+            if (isNaN(current)) current = 0;
+            let newAmount = Math.max(0, current + delta);
+            input.value = newAmount > 0 ? formatBtcString(newAmount) : '';
+            updateEquivalent();
+        }
+
+        // Calculate and display current USD equivalent of the BTC input
+        function updateEquivalent() {
+            const amountInput = document.getElementById('trade-btc-amount');
+            const equivEl = document.getElementById('trade-equivalent-usd');
+            if (!amountInput || !equivEl) return;
+
+            const amount = parseFloat(amountInput.value);
+            if (isNaN(amount) || amount <= 0 || currentBtcPrice <= 0) {
+                equivEl.textContent = '$0.00';
+                return;
+            }
+
+            const rawVal = amount * currentBtcPrice;
+            const feeFactor = (exchangeMode === 'buy') ? 1.001 : 0.999;
+            const finalVal = rawVal * feeFactor;
+
+            equivEl.innerHTML = `<strong>$${rawVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> <span style="font-size: 11px; font-weight: normal; color: var(--coffee-accent);">${exchangeMode === 'buy' ? 'з комісією 0.1%' : 'після комісії 0.1%'}: $${finalVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
+        }
+
+        // Reset game balance to default $100
+        function resetGameBalance() {
+            if (confirm('Ви впевнені, що хочете скинути баланс гаманця та видалити всі активні операції?')) {
+                walletUsd = 100.00;
+                walletBtc = 0.00000000;
+                activePosition = null;
+                saveGameState();
+                updateExchangeUI();
+            }
+        }
+
+        // Fetch Bitcoin price in real time from Binance API
+        async function fetchBtcRealTimePrice() {
+            try {
+                const response = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
+                if (response.data && response.data.price) {
+                    currentBtcPrice = parseFloat(response.data.price);
+                    updateExchangeUI();
+                    updateEquivalent();
+                }
+            } catch (error) {
+                console.warn('❌ Failed to fetch Binance price ticker, falling back to local data:', error);
+                // Fallback: try getting price from the today-data section
+                const todayCloseText = document.getElementById('today-close-text');
+                if (todayCloseText && todayCloseText.textContent !== '-') {
+                    const priceVal = parseFloat(todayCloseText.textContent.replace('$', '').replace(/,/g, '').trim());
+                    if (!isNaN(priceVal) && priceVal > 0) {
+                        currentBtcPrice = priceVal;
+                        updateExchangeUI();
+                        updateEquivalent();
+                    }
+                }
+            }
+        }
+
+        // Start Price Polling Interval
+        let btcPriceInterval = null;
+        function startBtcPricePolling() {
+            fetchBtcRealTimePrice();
+            if (btcPriceInterval) clearInterval(btcPriceInterval);
+            btcPriceInterval = setInterval(fetchBtcRealTimePrice, 5000);
+        }
+
+        // Fine-tuning JavaScript Logic
+        let finetuneInterval = null;
+
+        async function startFinetune() {
+            const epochs = parseInt(document.getElementById('finetune-epochs').value) || 5;
+            try {
+                document.getElementById('start-finetune-btn').disabled = true;
+                document.getElementById('finetune-status-success').style.display = 'none';
+                document.getElementById('finetune-status-error').style.display = 'none';
+
+                const response = await axios.post('/api/finetune/start', {
+                    epochs: epochs
+                });
+                if (response.data.success) {
+                    showStatus('success', 'Донавчання моделі запущено в фоновому режимі');
+                    document.getElementById('finetune-progress-section').style.display = 'block';
+                    document.getElementById('finetune-log-section').style.display = 'block';
+                    document.getElementById('stop-finetune-btn').style.display = 'block';
+
+                    if (finetuneInterval) clearInterval(finetuneInterval);
+                    finetuneInterval = setInterval(checkFinetuneStatus, 2000);
+                } else {
+                    showStatus('error', response.data.error || 'Не вдалося запустити навчання');
+                    document.getElementById('start-finetune-btn').disabled = false;
+                }
+            } catch (error) {
+                console.error('Finetuning start failed:', error);
+                showStatus('error', `Помилка запуску: ${error.response?.data?.error || error.message}`);
+                document.getElementById('start-finetune-btn').disabled = false;
+            }
+        }
+
+        async function checkFinetuneStatus() {
+            try {
+                const response = await axios.get('/api/finetune/status');
+                const data = response.data;
+
+                if (data.is_running || data.progress_percent > 0 || data.success || data.error) {
+                    document.getElementById('finetune-progress-section').style.display = 'block';
+                    document.getElementById('finetune-log-section').style.display = 'block';
+                    document.getElementById('finetune-progress-bar').style.width = `${data.progress_percent}%`;
+                    document.getElementById('finetune-progress-text').textContent = `${data.progress_percent}% (Епоха ${data.current_epoch}/${data.total_epochs})`;
+                }
+
+                const terminal = document.getElementById('finetune-terminal');
+                terminal.textContent = data.logs;
+                terminal.scrollTop = terminal.scrollHeight;
+
+                if (data.is_running) {
+                    document.getElementById('start-finetune-btn').disabled = true;
+                    document.getElementById('stop-finetune-btn').style.display = 'block';
+
+                    if (!finetuneInterval) {
+                        finetuneInterval = setInterval(checkFinetuneStatus, 2000);
+                    }
+                } else {
+                    document.getElementById('stop-finetune-btn').style.display = 'none';
+                    document.getElementById('start-finetune-btn').disabled = false;
+
+                    if (finetuneInterval) {
+                        clearInterval(finetuneInterval);
+                        finetuneInterval = null;
+                    }
+
+                    if (data.success) {
+                        document.getElementById('finetune-status-success').style.display = 'block';
+                        await updateModelStatus();
+                    } else if (data.error) {
+                        document.getElementById('finetune-status-error').style.display = 'block';
+                        document.getElementById('finetune-error-msg').textContent = data.error;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to get finetune status:', error);
+            }
+        }
+
+        async function stopFinetune() {
+            try {
+                const response = await axios.post('/api/finetune/stop');
+                if (response.data.success) {
+                    showStatus('info', 'Процес навчання зупинено користувачем');
+                    checkFinetuneStatus();
+                }
+            } catch (error) {
+                console.error('Failed to stop finetune:', error);
+                showStatus('error', `Не вдалося зупинити процес: ${error.response?.data?.error || error.message}`);
+            }
+        }
+
+        // Call checkFinetuneStatus on load to resume monitoring if it was already running
+        setTimeout(checkFinetuneStatus, 1000);
+    </script>
+</body>
+
+</html>

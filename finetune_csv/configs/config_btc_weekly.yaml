@@ -1,0 +1,58 @@
+# Config for finetuning kronos on BTC weekly data
+# Конфігурація для тонкого налаштування Kronos на тижневих даних BTC-USD
+
+data:
+  # Шлях до файлу з вашими даними біткоїна
+  data_path: "/Users/kostantinkrivula/Desktop/Kronos-master/data/btc_history_20170814_20260601.csv"
+  lookback_window: 350         # Скільки точок в історії дивиться модель (lookback)
+  predict_window: 50           # Скільки точок прогнозуємо (для порівняння при навчанні)
+  max_context: 512             # Максимальний контекст моделі
+  clip: 5.0                    # Обрізання викидів при нормуванні
+  
+  # Розподіл даних на навчальну та валідаційну вибірки
+  train_ratio: 0.9             # 90% для навчання
+  val_ratio: 0.1               # 10% для валідації
+  test_ratio: 0.0
+
+training:
+  tokenizer_epochs: 15         # Кількість епох навчання токенізатора (можна збільшити для кращої точності)
+  basemodel_epochs: 15         # Кількість епох навчання самої моделі-передбачувача
+  batch_size: 16               # Розмір батчу
+  log_interval: 10
+  num_workers: 2
+  seed: 42
+  
+  tokenizer_learning_rate: 0.0002
+  predictor_learning_rate: 0.000001
+  
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  adam_weight_decay: 0.1
+  accumulation_steps: 1
+
+model_paths:
+  # Назви базових моделей на Hugging Face (або локальні шляхи)
+  pretrained_tokenizer: "NeoQuasar/Kronos-Tokenizer-base"
+  pretrained_predictor: "NeoQuasar/Kronos-small"
+  
+  # Назва вашого експерименту та папка для збереження донавченої моделі
+  exp_name: "btc_weekly_finetuned"
+  base_path: "/Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned/"
+
+  base_save_path: ""
+  finetuned_tokenizer: ""
+  
+  tokenizer_save_name: "tokenizer"
+  basemodel_save_name: "basemodel"
+
+experiment:
+  name: "kronos_btc_finetune"
+  description: "Finetune Kronos on BTC weekly data"
+  use_comet: false
+  train_tokenizer: true        # Чи навчати токенізатор (рекомендовано true)
+  train_basemodel: true        # Чи навчати саму модель прогнозу (рекомендовано true)
+  skip_existing: false
+
+device:
+  use_cuda: false              # Встановіть true, якщо у вас є NVIDIA GPU (з CUDA), інакше false
+  device_id: 0
