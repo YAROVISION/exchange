@@ -110,9 +110,9 @@ sudo systemctl status docker
    cd exchange
    ```
 
-2. Створіть файл конфігурації `.env` для вашого додатку Flask:
+2. Створіть файл конфігурації `.env` у кореневій директорії проекту (де розташовано `docker-compose.yml`):
    ```bash
-   nano webui/.env
+   nano .env
    ```
 
 3. Вставте наступні параметри (замініть на реальні URL та ключі вашого проекту Supabase):
@@ -127,25 +127,17 @@ sudo systemctl status docker
 
 ---
 
-## Крок 5. Збірка та запуск Docker-контейнера
+## Крок 5. Збірка та запуск контейнера через Docker Compose
 
-1. Запустіть збірку Docker-образу з кореневої папки проекту (де знаходиться `Dockerfile`):
+1. Запустіть збірку Docker-образу та контейнер у фоновому режимі однією командою з кореневої папки проекту (де знаходиться `docker-compose.yml`):
    ```bash
-   docker build -t exchange-app .
+   docker compose up -d
    ```
+   *Ця команда сама зчитає змінні з файлу `.env`, збере образ та запустить контейнер `exchange-web` на порту `7070` з автоматичним перезапуском.*
 
-2. Запустіть контейнер у фоновому режимі, змапивши внутрішній порт `7070` на локальний порт `7070` сервера:
+2. Перевірте, що контейнер успішно запущено та працює:
    ```bash
-   docker run -d \
-     --name exchange-web \
-     -p 7070:7070 \
-     --restart unless-stopped \
-     exchange-app
-   ```
-
-3. Перевірте, що контейнер успішно запущено та працює:
-   ```bash
-   docker ps
+   docker compose ps
    ```
 
 ---
@@ -218,25 +210,23 @@ sudo systemctl status docker
 
 ---
 
-## Корисні команди для керування додатком на VPS
+## Корисні команди для керування додатком на VPS (через Docker Compose)
 
 * **Перегляд логів роботи додатку:**
   ```bash
-  docker logs -f exchange-web
+  docker compose logs -f
   ```
 * **Перезапуск контейнера:**
   ```bash
-  docker restart exchange-web
+  docker compose restart
   ```
 * **Зупинка контейнера:**
   ```bash
-  docker stop exchange-web
+  docker compose down
   ```
 * **Оновлення коду проекту з GitHub:**
   ```bash
   cd /var/www/exchange
   git pull
-  docker build -t exchange-app .
-  docker rm -f exchange-web
-  docker run -d --name exchange-web -p 7070:7070 --restart unless-stopped exchange-app
+  docker compose up -d --build
   ```
