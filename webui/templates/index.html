@@ -2503,9 +2503,63 @@
                     fillcolor: fillColor,
                     hoverinfo: 'x+y'
                 };
+
+                // Find highest and lowest price indices
+                const maxPrice = Math.max(...prices);
+                const minPrice = Math.min(...prices);
+                const maxIndex = prices.indexOf(maxPrice);
+                const minIndex = prices.indexOf(minPrice);
+
+                // Max price trace (Red dot)
+                const maxTrace = {
+                    x: [times[maxIndex]],
+                    y: [maxPrice],
+                    mode: 'markers+text',
+                    marker: {
+                        color: '#f44336',
+                        size: 9,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    text: [`$${maxPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}`],
+                    textposition: 'top center',
+                    textfont: {
+                        color: 'var(--coffee-dark)',
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    hoverinfo: 'none',
+                    showlegend: false
+                };
+
+                // Min price trace (Blue dot)
+                const minTrace = {
+                    x: [times[minIndex]],
+                    y: [minPrice],
+                    mode: 'markers+text',
+                    marker: {
+                        color: '#007bff',
+                        size: 9,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    text: [`$${minPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}`],
+                    textposition: 'bottom center',
+                    textfont: {
+                        color: 'var(--coffee-dark)',
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    hoverinfo: 'none',
+                    showlegend: false
+                };
                 
                 const layout = {
-                    margin: { t: 15, b: 30, l: 55, r: 15 },
+                    margin: { t: 25, b: 30, l: 55, r: 15 },
                     height: 200,
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
@@ -2530,7 +2584,7 @@
                 };
                 
                 document.getElementById('yesterday-chart').style.display = 'block';
-                Plotly.newPlot('yesterday-chart', [trace], layout, config);
+                Plotly.newPlot('yesterday-chart', [trace, maxTrace, minTrace], layout, config);
                 
             } catch (error) {
                 console.error('❌ Failed to load yesterday klines chart:', error);
