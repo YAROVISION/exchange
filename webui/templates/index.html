@@ -186,6 +186,29 @@
             background: linear-gradient(135deg, #A0522D 0%, #8B4513 100%);
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #A83232 0%, #7A1E1E 100%);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--coffee-light);
+            background-color: white;
+            color: var(--coffee-dark);
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--coffee-accent);
+            box-shadow: 0 0 0 3px rgba(139, 90, 43, 0.15);
+        }
+
         .status {
             padding: 15px;
             border-radius: 8px;
@@ -849,6 +872,7 @@
                     <button class="tab-btn active" id="tab-forecast-btn" onclick="switchTab('forecast')">🔮 Прогнозування</button>
                     <button class="tab-btn" id="tab-finetune-btn" onclick="switchTab('finetune')">⚙️ Донавчання</button>
                     <button class="tab-btn" id="tab-exchange-btn" onclick="switchTab('exchange')">🏦 Біржа</button>
+                    <button class="tab-btn" id="tab-auth-btn" onclick="switchTab('auth')">🔐 Вхід/Реєстрація</button>
                 </div>
 
                 <!-- Forecast Tab Content -->
@@ -964,6 +988,7 @@
                 <!-- Finetune Tab Content -->
                 <div id="finetune-tab-content" class="tab-content" style="display: none;">
                     <h2>⚙️ Донавчання моделі</h2>
+                    <div id="finetune-admin-prompt" style="display: none; background: #F8D7DA; color: #721C24; border: 1px solid #F5C6CB; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; font-size: 14px; text-align: center;"></div>
 
                     <div style="margin-bottom: 20px; font-size: 13px; color: var(--coffee-dark); line-height: 1.5;">
                         <p>Тут ви можете донавчити модель <strong>BTC Daily</strong> на останніх актуальних даних, завантажених з біржі Binance.</p>
@@ -1017,6 +1042,7 @@
                 <!-- Exchange Tab Content -->
                 <div id="exchange-tab-content" class="tab-content" style="display: none;">
                     <h2>🏦 Симулятор торгівлі BTC</h2>
+                    <div id="exchange-login-prompt" style="display: none; background: #FFF3CD; color: #856404; border: 1px solid #FFEBAA; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; font-size: 14px; text-align: center;"></div>
                     
                     <div class="exchange-container">
                         <!-- Wallet & Price Display -->
@@ -1073,6 +1099,47 @@
                                 🔄 Скинути баланс до $100.00
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Auth Tab Content -->
+                <div id="auth-tab-content" class="tab-content" style="display: none;">
+                    <div id="auth-unlogged-view">
+                        <h2 id="auth-title">🔐 Вхід у систему</h2>
+                        
+                        <div class="form-group">
+                            <label for="auth-email">Email:</label>
+                            <input type="email" id="auth-email" placeholder="example@gmail.com" required>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label for="auth-password">Пароль:</label>
+                            <input type="password" id="auth-password" placeholder="••••••••" required>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button id="btn-login-submit" class="btn" onclick="handleLogin()" style="flex: 1; margin-bottom: 0;">
+                                Увійти
+                            </button>
+                            <button id="btn-register-submit" class="btn btn-secondary" onclick="handleRegister()" style="flex: 1; margin-bottom: 0;">
+                                Реєстрація
+                            </button>
+                        </div>
+                        
+                        <div id="auth-error-msg" style="color: #ff4d4d; font-size: 13px; margin-top: 15px; display: none; text-align: center; font-weight: 500;"></div>
+                    </div>
+                    
+                    <div id="auth-logged-view" style="display: none;">
+                        <h2>👤 Особистий кабінет</h2>
+                        <div class="exchange-card" style="padding: 15px; margin-bottom: 15px; border-radius: 8px; background: var(--coffee-latte); border: 1px solid var(--coffee-light);">
+                            <div style="font-size: 14px; color: var(--coffee-dark);">Ви авторизовані як:</div>
+                            <div id="auth-user-display" style="font-size: 18px; font-weight: bold; color: var(--coffee-espresso); margin-top: 5px; word-break: break-all;">-</div>
+                            <div id="auth-role-display" style="font-size: 13px; color: var(--coffee-accent); margin-top: 5px; font-weight: 600;">Роль: Звичайний користувач</div>
+                        </div>
+                        
+                        <button id="btn-logout" class="btn btn-danger" onclick="handleLogout()" style="width: 100%;">
+                            🚪 Вийти з акаунта
+                        </button>
                     </div>
                 </div>
 
@@ -1844,6 +1911,10 @@
                 document.getElementById('tab-exchange-btn').classList.add('active');
                 document.getElementById('exchange-tab-content').style.display = 'block';
                 updateExchangeUI();
+            } else if (tabId === 'auth') {
+                document.getElementById('tab-auth-btn').classList.add('active');
+                document.getElementById('auth-tab-content').style.display = 'block';
+                checkAuthStatus();
             }
         }
 
@@ -1854,27 +1925,226 @@
         let exchangeMode = 'buy'; // 'buy' or 'sell'
         let activePosition = null; // { btcAmount, purchaseDate, purchasePrice }
 
-        // Load Game State from localStorage
-        function loadGameState() {
-            const savedUsd = localStorage.getItem('exchange_wallet_usd');
-            const savedBtc = localStorage.getItem('exchange_wallet_btc');
-            const savedPosition = localStorage.getItem('exchange_active_position');
+        // Auth State Variables
+        let isLoggedIn = false;
+        let userEmail = '';
 
-            if (savedUsd !== null) walletUsd = parseFloat(savedUsd);
-            if (savedBtc !== null) walletBtc = parseFloat(savedBtc);
-            if (savedPosition !== null) activePosition = JSON.parse(savedPosition);
-
-            updateExchangeUI();
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                isLoggedIn = data.logged_in;
+                if (isLoggedIn) {
+                    userEmail = data.user.email;
+                    document.getElementById('auth-unlogged-view').style.display = 'none';
+                    document.getElementById('auth-logged-view').style.display = 'block';
+                    document.getElementById('auth-user-display').textContent = userEmail;
+                    document.getElementById('tab-auth-btn').textContent = `👤 Кабінет`;
+                    
+                    const roleEl = document.getElementById('auth-role-display');
+                    if (userEmail === 'yarovision@gmail.com') {
+                        roleEl.textContent = 'Роль: Головний Адміністратор';
+                        roleEl.style.color = '#27ae60';
+                    } else {
+                        roleEl.textContent = 'Роль: Звичайний користувач';
+                        roleEl.style.color = 'var(--coffee-accent)';
+                    }
+                    
+                    // Fetch wallet and history from server
+                    await fetchCloudWallet();
+                } else {
+                    userEmail = '';
+                    document.getElementById('auth-unlogged-view').style.display = 'block';
+                    document.getElementById('auth-logged-view').style.display = 'none';
+                    document.getElementById('tab-auth-btn').textContent = `🔐 Вхід/Реєстрація`;
+                    
+                    walletUsd = 100.00;
+                    walletBtc = 0.00000000;
+                    activePosition = null;
+                }
+                
+                updateExchangeUI();
+                updateButtonStates();
+            } catch (e) {
+                console.error("Error checking auth status:", e);
+            }
         }
 
-        // Save Game State to localStorage
-        function saveGameState() {
-            localStorage.setItem('exchange_wallet_usd', walletUsd.toString());
-            localStorage.setItem('exchange_wallet_btc', walletBtc.toString());
-            if (activePosition) {
-                localStorage.setItem('exchange_active_position', JSON.stringify(activePosition));
+        function loadGameState() {
+            // Re-map loadGameState to checkAuthStatus for compatibility with existing onload events
+            checkAuthStatus();
+        }
+
+        async function fetchCloudWallet() {
+            if (!isLoggedIn) return;
+            try {
+                const response = await fetch('/api/exchange/wallet');
+                if (response.ok) {
+                    const data = await response.json();
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    if (walletBtc > 0) {
+                        activePosition = {
+                            btcAmount: walletBtc,
+                            purchasePrice: parseFloat(data.avg_buy_price),
+                            purchaseDate: 'В утриманні (сервер)'
+                        };
+                    } else {
+                        activePosition = null;
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching cloud wallet:", e);
+            }
+        }
+
+        function updateButtonStates() {
+            // exchange buttons
+            const exchangeActionBtn = document.getElementById('trade-action-btn');
+            const resetGameBtn = document.querySelector('.btn-reset-game');
+            const buyModeBtn = document.getElementById('toggle-buy-btn');
+            const sellModeBtn = document.getElementById('toggle-sell-btn');
+            const tradeAmountInput = document.getElementById('trade-btc-amount');
+            const adjustBtns = document.querySelectorAll('.adjust-btn');
+            const btcPrompt = document.getElementById('exchange-login-prompt');
+            
+            if (isLoggedIn) {
+                if (exchangeActionBtn) exchangeActionBtn.removeAttribute('disabled');
+                if (resetGameBtn) resetGameBtn.removeAttribute('disabled');
+                if (buyModeBtn) buyModeBtn.removeAttribute('disabled');
+                if (sellModeBtn) sellModeBtn.removeAttribute('disabled');
+                if (tradeAmountInput) tradeAmountInput.removeAttribute('disabled');
+                adjustBtns.forEach(btn => btn.removeAttribute('disabled'));
+                if (btcPrompt) btcPrompt.style.display = 'none';
             } else {
-                localStorage.removeItem('exchange_active_position');
+                if (exchangeActionBtn) exchangeActionBtn.setAttribute('disabled', 'true');
+                if (resetGameBtn) resetGameBtn.setAttribute('disabled', 'true');
+                if (buyModeBtn) buyModeBtn.setAttribute('disabled', 'true');
+                if (sellModeBtn) sellModeBtn.setAttribute('disabled', 'true');
+                if (tradeAmountInput) tradeAmountInput.setAttribute('disabled', 'true');
+                adjustBtns.forEach(btn => btn.setAttribute('disabled', 'true'));
+                
+                if (btcPrompt) {
+                    btcPrompt.style.display = 'block';
+                    btcPrompt.textContent = '🔒 Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.';
+                }
+            }
+
+            // finetune buttons
+            const startFinetuneBtn = document.getElementById('start-finetune-btn');
+            const stopFinetuneBtn = document.getElementById('stop-finetune-btn');
+            const finetuneEpochsInput = document.getElementById('finetune-epochs');
+            const finetunePrompt = document.getElementById('finetune-admin-prompt');
+            
+            const isEmailAdmin = (userEmail === 'yarovision@gmail.com');
+            
+            if (isLoggedIn && isEmailAdmin) {
+                if (startFinetuneBtn) startFinetuneBtn.removeAttribute('disabled');
+                if (stopFinetuneBtn) stopFinetuneBtn.removeAttribute('disabled');
+                if (finetuneEpochsInput) finetuneEpochsInput.removeAttribute('disabled');
+                if (finetunePrompt) finetunePrompt.style.display = 'none';
+            } else {
+                if (startFinetuneBtn) startFinetuneBtn.setAttribute('disabled', 'true');
+                if (stopFinetuneBtn) stopFinetuneBtn.setAttribute('disabled', 'true');
+                if (finetuneEpochsInput) finetuneEpochsInput.setAttribute('disabled', 'true');
+                
+                if (finetunePrompt) {
+                    finetunePrompt.style.display = 'block';
+                    if (!isLoggedIn) {
+                        finetunePrompt.textContent = '🔒 Будь ласка, авторизуйтесь під акаунтом адміністратора, щоб запустити донавчання.';
+                    } else {
+                        finetunePrompt.textContent = '🔒 Доступ обмежено. Лише головний адміністратор (yarovision@gmail.com) може запускати донавчання.';
+                    }
+                }
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            if (!email || !password) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Будь ласка, заповніть усі поля';
+                return;
+            }
+            
+            errorMsg.style.display = 'none';
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('auth-email').value = '';
+                    document.getElementById('auth-password').value = '';
+                    await checkAuthStatus();
+                    showStatus('success', 'Вхід виконано успішно!');
+                } else {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = data.error || 'Помилка авторизації';
+                }
+            } catch (e) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Помилка мережі при вході';
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function handleRegister() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            if (!email || !password) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Будь ласка, заповніть усі поля';
+                return;
+            }
+            
+            errorMsg.style.display = 'none';
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showStatus('success', data.message || 'Реєстрація успішна! Тепер ви можете увійти.');
+                } else {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = data.error || 'Помилка реєстрації';
+                }
+            } catch (e) {
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = 'Помилка мережі при реєстрації';
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function handleLogout() {
+            showLoading(true);
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                await checkAuthStatus();
+                showStatus('info', 'Ви вийшли з акаунта');
+            } catch (e) {
+                console.error("Logout failed:", e);
+            } finally {
+                showLoading(false);
             }
         }
 
@@ -1935,7 +2205,11 @@
         }
 
         // Execute Buy or Sell Trade
-        function executeTrade() {
+        async function executeTrade() {
+            if (!isLoggedIn) {
+                alert('Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.');
+                return;
+            }
             const amountInput = document.getElementById('trade-btc-amount');
             const amount = parseFloat(amountInput.value);
 
@@ -1949,59 +2223,46 @@
                 return;
             }
 
-            if (exchangeMode === 'buy') {
-                const totalCost = amount * currentBtcPrice * 1.001; // includes 0.1% fee
-                if (totalCost > walletUsd) {
-                    alert(`Недостатньо коштів на балансі! Вартість купівлі з комісією 0.1% складає $${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}, а на вашому балансі $${walletUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}.`);
-                    return;
-                }
+            showLoading(true);
 
-                // Deduct USD, Add BTC
-                walletUsd -= totalCost;
-                
-                // Calculate weighted average purchase price if already holding some BTC
-                if (walletBtc > 0 && activePosition) {
-                    const newTotalBtc = walletBtc + amount;
-                    const weightedPrice = ((walletBtc * activePosition.purchasePrice) + (amount * currentBtcPrice)) / newTotalBtc;
-                    activePosition = {
-                        btcAmount: newTotalBtc,
-                        purchaseDate: new Date().toLocaleString(),
-                        purchasePrice: weightedPrice
-                    };
+            try {
+                const response = await fetch('/api/exchange/trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: exchangeMode,
+                        amount: amount,
+                        price: currentBtcPrice
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    if (walletBtc > 0) {
+                        activePosition = {
+                            btcAmount: walletBtc,
+                            purchasePrice: parseFloat(data.avg_buy_price),
+                            purchaseDate: 'В утриманні (сервер)'
+                        };
+                    } else {
+                        activePosition = null;
+                    }
+                    
+                    updateExchangeUI();
+                    amountInput.value = '';
+                    document.getElementById('trade-equivalent-usd').textContent = '$0.00';
+                    showStatus('success', data.message || 'Угоду успішно виконано!');
                 } else {
-                    activePosition = {
-                        btcAmount: amount,
-                        purchaseDate: new Date().toLocaleString(),
-                        purchasePrice: currentBtcPrice
-                    };
+                    alert(data.error || 'Помилка виконання операції');
                 }
-
-                walletBtc += amount;
-                saveGameState();
-                alert(`Успішно куплено ${amount.toFixed(8)} BTC за курсом $${currentBtcPrice.toLocaleString()} (комісія: $${(amount * currentBtcPrice * 0.001).toFixed(2)}).`);
-            } else {
-                // Sell Mode
-                if (amount > walletBtc) {
-                    alert(`Недостатньо біткоїнів на балансі! Ви намагаєтесь продати ${amount.toFixed(8)} BTC, але на вашому балансі лише ${walletBtc.toFixed(8)} BTC.`);
-                    return;
-                }
-
-                const totalRevenue = amount * currentBtcPrice * 0.999; // deducts 0.1% fee
-                
-                // Deduct BTC, Add USD
-                walletBtc -= amount;
-                walletUsd += totalRevenue;
-
-                if (walletBtc <= 0.00000001) {
-                    walletBtc = 0; // prevent floating point issues
-                    activePosition = null;
-                } else if (activePosition) {
-                    activePosition.btcAmount = walletBtc;
-                }
-
-                saveGameState();
-                alert(`Успішно продано ${amount.toFixed(8)} BTC за курсом $${currentBtcPrice.toLocaleString()} (отримано: $${totalRevenue.toFixed(2)}, комісія: $${(amount * currentBtcPrice * 0.001).toFixed(2)}).`);
+            } catch (e) {
+                alert('Помилка мережі при виконанні угоди.');
+            } finally {
+                showLoading(false);
             }
+        }
 
             amountInput.value = ''; // clear input field
             updateExchangeUI();
@@ -2051,13 +2312,30 @@
         }
 
         // Reset game balance to default $100
-        function resetGameBalance() {
+        async function resetGameBalance() {
+            if (!isLoggedIn) {
+                alert('Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.');
+                return;
+            }
             if (confirm('Ви впевнені, що хочете скинути баланс гаманця та видалити всі активні операції?')) {
-                walletUsd = 100.00;
-                walletBtc = 0.00000000;
-                activePosition = null;
-                saveGameState();
-                updateExchangeUI();
+                showLoading(true);
+                try {
+                    const response = await fetch('/api/exchange/reset', { method: 'POST' });
+                    const data = await response.json();
+                    if (response.ok) {
+                        walletUsd = 100.00;
+                        walletBtc = 0.00000000;
+                        activePosition = null;
+                        updateExchangeUI();
+                        showStatus('info', data.message || 'Баланс успішно скинуто!');
+                    } else {
+                        alert(data.error || 'Помилка скидання балансу');
+                    }
+                } catch (e) {
+                    alert('Помилка мережі при скиданні балансу.');
+                } finally {
+                    showLoading(false);
+                }
             }
         }
 

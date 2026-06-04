@@ -4,12 +4,17 @@ import numpy as np
 import json
 import plotly.graph_objects as go
 import plotly.utils
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 import sys
 import warnings
 import datetime
 import subprocess
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+# Load environment variables from .env file
+load_dotenv()
 
 warnings.filterwarnings('ignore')
 
@@ -24,7 +29,23 @@ except ImportError:
     print("Warning: Kronos model cannot be imported, will use simulated data for demonstration")
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default-secret-key-change-me")
 CORS(app)
+
+# Initialize Supabase client
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+supabase: Client = None
+
+if SUPABASE_URL and SUPABASE_KEY and "your-project-id" not in SUPABASE_URL:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("🚀 Supabase client initialized successfully")
+    except Exception as e:
+        print(f"❌ Error initializing Supabase client: {str(e)}")
+else:
+    print("⚠️ Supabase credentials not configured in .env. Auth and DB features will be unavailable.")
+
 
 # Global variables to store models
 tokenizer = None
@@ -449,6 +470,354 @@ def create_prediction_chart(df, pred_df, lookback, pred_len, actual_df=None, his
         )
     
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+# --- Authentication Helper and Endpoints ---
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Unauthorized. Please login first.'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/api/auth/register', methods=['POST'])
+def auth_register():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+    
+    data = request.json or {}
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+        
+    try:
+        res = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        user = getattr(res, 'user', None)
+        if user:
+            return jsonify({'message': 'Registration successful! Proceed to login.'}), 201
+        else:
+            return jsonify({'error': 'Registration failed'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    if not supabase:
+        return jsonify({'error': 'Supabase is not configured'}), 503
+        
+    data = request.json or {}
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+        
+    try:
+        res = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        user = getattr(res, 'user', None)
+        sess = getattr(res, 'session', None)
+        if user and sess:
+            # Save user info in flask session
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['access_token'] = sess.access_token
+            return jsonify({
+                'message': 'Login successful!',
+                'user': {
+                    'id': user.id,
+                    'email': user.email
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid credentials'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    session.clear()
+    return jsonify({'message': 'Logged out successfully!'}), 200
+
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    user_id = session.get('user_id')
+    user_email = session.get('user_email')
+    if user_id:
+        return jsonify({
+            'logged_in': True,
+            'user': {
+                'id': user_id,
+                'email': user_email
+            }
+        }), 200
+    else:
+        return jsonify({
+            'logged_in': False
+        }), 200
+
+# --- Exchange Game Endpoints (with Supabase / Flask Session fallback) ---
+
+@app.route('/api/exchange/wallet', methods=['GET'])
+@login_required
+def exchange_wallet():
+    user_id = session.get('user_id')
+    
+    # 1. Try Supabase
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            data = getattr(res, 'data', [])
+            if data:
+                wallet = data[0]
+                return jsonify({
+                    'usd_balance': float(wallet['usd_balance']),
+                    'btc_balance': float(wallet['btc_balance']),
+                    'avg_buy_price': float(wallet['avg_buy_price'])
+                }), 200
+            else:
+                new_wallet = {
+                    'user_id': user_id,
+                    'usd_balance': 100.0,
+                    'btc_balance': 0.0,
+                    'avg_buy_price': 0.0
+                }
+                supabase.table('wallets').insert(new_wallet).execute()
+                return jsonify({
+                    'usd_balance': 100.0,
+                    'btc_balance': 0.0,
+                    'avg_buy_price': 0.0
+                }), 200
+        except Exception as e:
+            print(f"Error fetching wallet from Supabase: {str(e)}")
+            
+    # 2. Fallback to Flask session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    return jsonify(session['wallet']), 200
+
+@app.route('/api/exchange/history', methods=['GET'])
+@login_required
+def exchange_history():
+    user_id = session.get('user_id')
+    
+    if supabase:
+        try:
+            res = supabase.table('trades').select('*').eq('user_id', user_id).order('timestamp', desc=True).execute()
+            data = getattr(res, 'data', [])
+            return jsonify(data), 200
+        except Exception as e:
+            print(f"Error fetching history from Supabase: {str(e)}")
+            
+    # Fallback to session
+    if 'trades' not in session:
+        session['trades'] = []
+    return jsonify(session['trades']), 200
+
+@app.route('/api/exchange/trade', methods=['POST'])
+@login_required
+def exchange_trade():
+    user_id = session.get('user_id')
+    data = request.json or {}
+    trade_type = data.get('type')  # 'buy' or 'sell'
+    btc_amount = data.get('amount')
+    price = data.get('price')      # Price per BTC
+    
+    if not trade_type or btc_amount is None or not price:
+        return jsonify({'error': 'Missing transaction details'}), 400
+        
+    try:
+        btc_amount = float(btc_amount)
+        price = float(price)
+    except ValueError:
+        return jsonify({'error': 'Invalid number format'}), 400
+        
+    if btc_amount <= 0 or price <= 0:
+        return jsonify({'error': 'Amount and price must be greater than zero'}), 400
+
+    fee_rate = 0.001  # 0.1% fee
+    
+    # 1. Process via Supabase
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            wallets_data = getattr(res, 'data', [])
+            if not wallets_data:
+                return jsonify({'error': 'Wallet not found'}), 404
+            
+            wallet = wallets_data[0]
+            usd_balance = float(wallet['usd_balance'])
+            btc_balance = float(wallet['btc_balance'])
+            avg_buy_price = float(wallet['avg_buy_price'])
+            
+            fee = btc_amount * price * fee_rate
+            total_usd_value = btc_amount * price
+            
+            if trade_type == 'buy':
+                total_cost = total_usd_value + fee
+                if usd_balance < total_cost:
+                    return jsonify({'error': 'Недостатньо USD для купівлі'}), 400
+                    
+                new_usd_balance = usd_balance - total_cost
+                new_btc_balance = btc_balance + btc_amount
+                if new_btc_balance > 0:
+                    new_avg_buy_price = ((btc_balance * avg_buy_price) + (btc_amount * price)) / new_btc_balance
+                else:
+                    new_avg_buy_price = 0.0
+                    
+            elif trade_type == 'sell':
+                if btc_balance < btc_amount:
+                    return jsonify({'error': 'Недостатньо BTC для продажу'}), 400
+                    
+                new_usd_balance = usd_balance + (total_usd_value - fee)
+                new_btc_balance = btc_balance - btc_amount
+                new_avg_buy_price = avg_buy_price if new_btc_balance > 0 else 0.0
+            else:
+                return jsonify({'error': 'Invalid trade type'}), 400
+                
+            supabase.table('wallets').update({
+                'usd_balance': new_usd_balance,
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            trade_log = {
+                'user_id': user_id,
+                'type': trade_type,
+                'btc_amount': btc_amount,
+                'price': price,
+                'fee': fee,
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+            supabase.table('trades').insert(trade_log).execute()
+            
+            return jsonify({
+                'usd_balance': new_usd_balance,
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'message': 'Угоду успішно виконано!'
+            }), 200
+            
+        except Exception as e:
+            print(f"Supabase trade failed, falling back to session: {str(e)}")
+
+    # 2. Fallback to Flask session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    if 'trades' not in session:
+        session['trades'] = []
+        
+    wallet = session['wallet']
+    usd_balance = float(wallet['usd_balance'])
+    btc_balance = float(wallet['btc_balance'])
+    avg_buy_price = float(wallet['avg_buy_price'])
+    
+    fee = btc_amount * price * fee_rate
+    total_usd_value = btc_amount * price
+    
+    if trade_type == 'buy':
+        total_cost = total_usd_value + fee
+        if usd_balance < total_cost:
+            return jsonify({'error': 'Недостатньо USD для купівлі'}), 400
+            
+        new_usd_balance = usd_balance - total_cost
+        new_btc_balance = btc_balance + btc_amount
+        if new_btc_balance > 0:
+            new_avg_buy_price = ((btc_balance * avg_buy_price) + (btc_amount * price)) / new_btc_balance
+        else:
+            new_avg_buy_price = 0.0
+            
+    elif trade_type == 'sell':
+        if btc_balance < btc_amount:
+            return jsonify({'error': 'Недостатньо BTC для продажу'}), 400
+            
+        new_usd_balance = usd_balance + (total_usd_value - fee)
+        new_btc_balance = btc_balance - btc_amount
+        new_avg_buy_price = avg_buy_price if new_btc_balance > 0 else 0.0
+    else:
+        return jsonify({'error': 'Invalid trade type'}), 400
+        
+    session['wallet'] = {
+        'usd_balance': new_usd_balance,
+        'btc_balance': new_btc_balance,
+        'avg_buy_price': new_avg_buy_price
+    }
+    
+    trade_log = {
+        'id': len(session['trades']) + 1,
+        'user_id': user_id,
+        'type': trade_type,
+        'btc_amount': btc_amount,
+        'price': price,
+        'fee': fee,
+        'timestamp': datetime.datetime.now().isoformat()
+    }
+    session['trades'].insert(0, trade_log)
+    session.modified = True
+    
+    return jsonify({
+        'usd_balance': new_usd_balance,
+        'btc_balance': new_btc_balance,
+        'avg_buy_price': new_avg_buy_price,
+        'message': 'Угоду успішно виконано! (Збережено в сесії)'
+    }), 200
+
+@app.route('/api/exchange/reset', methods=['POST'])
+@login_required
+def exchange_reset():
+    user_id = session.get('user_id')
+    
+    if supabase:
+        try:
+            supabase.table('wallets').update({
+                'usd_balance': 100.0,
+                'btc_balance': 0.0,
+                'avg_buy_price': 0.0,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            supabase.table('trades').delete().eq('user_id', user_id).execute()
+            
+            return jsonify({
+                'usd_balance': 100.0,
+                'btc_balance': 0.0,
+                'avg_buy_price': 0.0,
+                'message': 'Баланс успішно скинуто, історію очищено!'
+            }), 200
+        except Exception as e:
+            print(f"Supabase reset failed: {str(e)}")
+            
+    session['wallet'] = {
+        'usd_balance': 100.0,
+        'btc_balance': 0.0,
+        'avg_buy_price': 0.0
+    }
+    session['trades'] = []
+    session.modified = True
+    return jsonify({
+        'usd_balance': 100.0,
+        'btc_balance': 0.0,
+        'avg_buy_price': 0.0,
+        'message': 'Баланс успішно скинуто! (Очищено в сесії)'
+    }), 200
 
 @app.route('/')
 def index():
@@ -941,6 +1310,10 @@ def start_finetune():
     """Start model fine-tuning in background"""
     global finetune_process, finetune_state
     
+    # Check if user is logged in and is the admin yarovision@gmail.com
+    if session.get('user_email') != 'yarovision@gmail.com':
+        return jsonify({'error': 'Forbidden. Only the administrator yarovision@gmail.com can start fine-tuning.'}), 403
+        
     if finetune_state['is_running']:
         return jsonify({'error': 'Fine-tuning process is already running'}), 400
         
@@ -1077,6 +1450,10 @@ def stop_finetune():
     """Terminate the background fine-tuning process"""
     global finetune_process, finetune_state
     
+    # Check if user is logged in and is the admin yarovision@gmail.com
+    if session.get('user_email') != 'yarovision@gmail.com':
+        return jsonify({'error': 'Forbidden. Only the administrator yarovision@gmail.com can stop fine-tuning.'}), 403
+        
     if not finetune_state['is_running'] or finetune_process is None:
         return jsonify({'message': 'Process is not running'}), 200
         
