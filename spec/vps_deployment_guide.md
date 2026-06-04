@@ -1,16 +1,14 @@
-# Покрокова інструкція розгортання Kronos на Hostinger VPS у Docker-контейнері
+# Покрокова інструкція розгортання Kronos на Hostinger VPS за допомогою Docker Compose та Traefik
 
-Цей посібник містить повний набір інструкцій для запуску проекту з вашого GitHub-репозиторію на Hostinger VPS під доменом `btc.lexis.blog`.
+Цей посібник описує процес розгортання додатку за допомогою **Docker Compose** під керуванням зворотного проксі-сервера **Traefik** (який автоматично керує SSL-сертифікатами Let's Encrypt через мітки контейнера) на вашому домені `btc.lexis.blog`.
 
 ---
 
 ## Крок 1. Підготовка бази даних у Supabase
 
-Перш ніж розгортати додаток на сервері, необхідно створити необхідні таблиці та тригери в хмарі Supabase.
-
 1. Перейдіть до консолі [Supabase](https://supabase.com/) та відкрийте свій проект.
-2. Перейдіть у меню **SQL Editor** ліворуч та натисніть **New query**.
-3. Скопіюйте та виконайте наступний SQL-скрипт для створення таблиць та тригера (для автоматичного створення гаманця на $100 при реєстрації користувача):
+2. Перейдіть у розділ **SQL Editor** ліворуч та натисніть **New query**.
+3. Скопіюйте та виконайте наступний SQL-код для створення таблиць та тригера для автоматичного балансу $100 при реєстрації користувача:
 
 ```sql
 -- 1. Створення таблиці гаманців
@@ -52,165 +50,110 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 
 ---
 
-## Крок 2. Налаштування DNS для домену
+## Крок 2. Налаштування DNS
 
-Щоб домен `btc.lexis.blog` вказував на ваш VPS:
-
-1. Перейдіть до панелі керування DNS вашого домену `lexis.blog` (у Hostinger, Cloudflare або іншому реєстраторі).
-2. Створіть новий запис:
-   * **Тип (Type):** `A`
-   * **Ім'я (Host):** `btc` (або `btc.lexis.blog`)
-   * **Значення (Points to):** `IP_адреса_вашого_VPS`
-   * **TTL:** за замовчуванням (або 3600)
+Перейдіть до керування DNS вашого домену `lexis.blog` та створіть запис:
+* **Тип:** `A`
+* **Ім'я (Host):** `btc` (або `btc.lexis.blog`)
+* **Адреса (Points to):** `<IP-адреса_вашого_VPS>`
 
 ---
 
-## Крок 3. Підготовка VPS на Hostinger та встановлення Docker
+## Крок 3. Збірка та публікація образу в Docker Hub
 
-Підключіться до вашого Hostinger VPS через SSH:
-```bash
-ssh root@IP_адреса_вашого_VPS
-```
+Оскільки у вашому `docker-compose.yml` вказано використання готового образу:
+`image: your-dockerhub-user/exchange-app:latest`
 
-Якщо на сервері ще не встановлено Docker та Git, виконайте такі команди (для Ubuntu/Debian):
+Вам необхідно зібрати образ локально (або на VPS) та опублікувати його в Docker Hub:
 
-```bash
-# Оновлення списку пакетів
-sudo apt update && sudo apt upgrade -y
-
-# Встановлення необхідних інструментів та Git
-sudo apt install -y git curl apt-transport-https ca-certificates gnupg lsb-release
-
-# Додавання офіційного GPG-ключа Docker
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-# Додавання репозиторію Docker
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Встановлення Docker Engine
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Перевірка статусу Docker
-sudo systemctl status docker
-```
-
----
-
-## Крок 4. Клонування репозиторію та конфігурація `.env`
-
-1. Склонуйте репозиторій з GitHub у потрібну папку (наприклад, `/var/www/exchange`):
+1. Авторизуйтесь у Docker Hub на робочій машині:
    ```bash
-   sudo mkdir -p /var/www
-   cd /var/www
-   git clone https://github.com/YAROVISION/exchange.git
-   cd exchange
+   docker login
    ```
 
-2. Створіть файл конфігурації `.env` у кореневій директорії проекту (де розташовано `docker-compose.yml`):
+2. Зберіть та надішліть образ (замініть `your-dockerhub-user` на ваше реальне ім'я користувача Docker Hub):
+   ```bash
+   # Перейдіть у кореневу папку проекту
+   docker build -t your-dockerhub-user/exchange-app:latest .
+   
+   # Запуште образ у Docker Hub
+   docker push your-dockerhub-user/exchange-app:latest
+   ```
+
+---
+
+## Крок 4. Налаштування VPS та підготовка мережі Traefik
+
+1. Підключіться до вашого VPS:
+   ```bash
+   ssh root@IP_адреса_вашого_VPS
+   ```
+
+2. Переконайтеся, що на VPS створено зовнішню мережу `traefik-proxy` (через яку Traefik спілкується з іншими контейнерами):
+   ```bash
+   docker network create traefik-proxy
+   ```
+   *(Якщо мережа вже була створена раніше, команда повідомить про це — це нормально).*
+
+---
+
+## Крок 5. Розгортання проекту на VPS через Docker Compose
+
+1. Створіть робочу папку для додатку на VPS:
+   ```bash
+   mkdir -p /var/www/kronos
+   cd /var/www/kronos
+   ```
+
+2. Створіть файл `docker-compose.yml`:
+   ```bash
+   nano docker-compose.yml
+   ```
+   Вставте туди конфігурацію (замініть `your-dockerhub-user` на ваше ім'я в Docker Hub):
+   ```yaml
+   version: '3.8'
+
+   services:
+     web:
+       image: your-dockerhub-user/exchange-app:latest
+       container_name: kronos-web
+       env_file:
+         - .env
+       restart: unless-stopped
+       labels:
+         - traefik.enable=true
+         - traefik.http.routers.kronos.rule=Host(`btc.lexis.blog`)
+         - traefik.http.routers.kronos.entrypoints=websecure
+         - traefik.http.routers.kronos.tls.certresolver=letsencrypt
+         - traefik.http.services.kronos.loadbalancer.server.port=7070
+       networks:
+         - traefik-proxy
+
+   networks:
+     traefik-proxy:
+       external: true
+   ```
+
+3. Створіть конфігураційний файл `.env` у тій же папці:
    ```bash
    nano .env
    ```
-
-3. Вставте наступні параметри (замініть на реальні URL та ключі вашого проекту Supabase):
+   Вставте параметри Supabase та Flask:
    ```env
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_KEY=your-anon-or-service-role-key
    FLASK_SECRET_KEY=генеруйте_будь-який_випадковий_довгий_рядок
    ```
-   *(Для генерації випадкового ключа в Linux можна виконати команду `openssl rand -hex 24`)*.
 
-4. Збережіть файл (`Ctrl + O`, потім `Enter` та `Ctrl + X`).
-
----
-
-## Крок 5. Збірка та запуск контейнера через Docker Compose
-
-1. Запустіть збірку Docker-образу та контейнер у фоновому режимі однією командою з кореневої папки проекту (де знаходиться `docker-compose.yml`):
+4. Запустіть додаток:
    ```bash
-   docker compose up -d
-   ```
-   *Ця команда сама зчитає змінні з файлу `.env`, збере образ та запустить контейнер `exchange-web` на порту `7070` з автоматичним перезапуском.*
-
-2. Перевірте, що контейнер успішно запущено та працює:
-   ```bash
-   docker compose ps
+   # Завантажити найновіший образ та запустити контейнер
+   docker compose pull && docker compose up -d
    ```
 
 ---
 
-## Крок 6. Встановлення та налаштування Nginx (Reverse Proxy)
-
-Щоб перенаправляти HTTPS-запити з домену `btc.lexis.blog` на локальний порт Docker-контейнера (`7070`), налаштуємо Nginx:
-
-1. Встановіть Nginx:
-   ```bash
-   sudo apt install -y nginx
-   ```
-
-2. Створіть файл конфігурації для вашого сайту:
-   ```bash
-   sudo nano /etc/nginx/sites-available/btc.lexis.blog
-   ```
-
-3. Додайте таку конфігурацію:
-   ```nginx
-   server {
-       listen 80;
-       server_name btc.lexis.blog;
-
-       # Максимальний розмір завантажень
-       client_max_body_size 50M;
-
-       location / {
-           proxy_pass http://127.0.0.1:7070;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded-for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
-   ```
-
-4. Збережіть файл. Увімкніть конфігурацію, створивши символічне посилання:
-   ```bash
-   sudo ln -s /etc/nginx/sites-available/btc.lexis.blog /etc/nginx/sites-enabled/
-   ```
-
-5. Перевірте конфігурацію Nginx на помилки та перезапустіть його:
-   ```bash
-   sudo nginx -t
-   sudo systemctl restart nginx
-   ```
-
----
-
-## Крок 7. Отримання безкоштовного SSL сертифікату (HTTPS) через Certbot
-
-Для захисту сайту та підключення HTTPS використаємо сертифікати Let's Encrypt:
-
-1. Встановіть Certbot для Nginx:
-   ```bash
-   sudo apt install -y certbot python3-certbot-nginx
-   ```
-
-2. Запустіть процес отримання сертифікату:
-   ```bash
-   sudo certbot --nginx -d btc.lexis.blog
-   ```
-   *Далі введіть свій email для сповіщень та погодьтеся з умовами використання. Certbot автоматично оновить конфігурацію Nginx для перенаправлення всього трафіку на HTTPS (`http` -> `https`).*
-
-3. Перевірте статус автоматичного оновлення сертифікатів:
-   ```bash
-   sudo systemctl status certbot.timer
-   ```
-
----
-
-## Корисні команди для керування додатком на VPS (через Docker Compose)
+## Корисні команди для керування на VPS
 
 * **Перегляд логів роботи додатку:**
   ```bash
@@ -224,9 +167,9 @@ sudo systemctl status docker
   ```bash
   docker compose down
   ```
-* **Оновлення коду проекту з GitHub:**
+* **Оновлення версії додатку після пушу в Docker Hub:**
   ```bash
-  cd /var/www/exchange
-  git pull
-  docker compose up -d --build
+  cd /var/www/kronos
+  docker compose pull
+  docker compose up -d
   ```

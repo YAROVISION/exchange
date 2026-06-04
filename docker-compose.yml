@@ -2,13 +2,20 @@ version: '3.8'
 
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: exchange-app:latest
-    container_name: exchange-web
-    ports:
-      - "7070:7070"
+    image: your-dockerhub-user/exchange-app:latest
+    container_name: kronos-web
     env_file:
       - .env
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kronos.rule=Host(`btc.lexis.blog`)
+      - traefik.http.routers.kronos.entrypoints=websecure
+      - traefik.http.routers.kronos.tls.certresolver=letsencrypt
+      - traefik.http.services.kronos.loadbalancer.server.port=7070
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
