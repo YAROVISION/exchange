@@ -1,8 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
   web:
-    image: your-dockerhub-user/exchange-app:latest
+    image: ghcr.io/yarovision/exchange:latest
     container_name: kronos-web
     env_file:
       - .env

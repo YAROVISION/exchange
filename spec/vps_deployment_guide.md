@@ -1,6 +1,6 @@
-# Покрокова інструкція розгортання Kronos на Hostinger VPS за допомогою Docker Compose та Traefik
+# Покрокова інструкція розгортання Kronos на Hostinger VPS за допомогою Docker Compose, GHCR та Traefik
 
-Цей посібник описує процес розгортання додатку за допомогою **Docker Compose** під керуванням зворотного проксі-сервера **Traefik** (який автоматично керує SSL-сертифікатами Let's Encrypt через мітки контейнера) на вашому домені `btc.lexis.blog`.
+Цей посібник описує процес розгортання додатку за допомогою **Docker Compose** із автоматично зібраним через GitHub Actions образом з **GitHub Container Registry (GHCR)** під керуванням зворотного проксі-сервера **Traefik** на вашому домені `btc.lexis.blog`.
 
 ---
 
@@ -59,26 +59,15 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 
 ---
 
-## Крок 3. Збірка та публікація образу в Docker Hub
+## Крок 3. Автоматична збірка образу через GitHub Actions (GHCR)
 
-Оскільки у вашому `docker-compose.yml` вказано використання готового образу:
-`image: your-dockerhub-user/exchange-app:latest`
+Збірка Docker-образу повністю автоматизована:
+1. Завдяки файлу конфігурації `.github/workflows/docker-image.yml`, при кожному пуші (push) коду в гілку `main` вашого репозиторію на GitHub буде запускатися GitHub Actions.
+2. Процес автоматично збере образ та опублікує його в **GitHub Container Registry (GHCR)** під тегом:
+   `ghcr.io/yarovision/exchange:latest`
 
-Вам необхідно зібрати образ локально (або на VPS) та опублікувати його в Docker Hub:
-
-1. Авторизуйтесь у Docker Hub на робочій машині:
-   ```bash
-   docker login
-   ```
-
-2. Зберіть та надішліть образ (замініть `your-dockerhub-user` на ваше реальне ім'я користувача Docker Hub):
-   ```bash
-   # Перейдіть у кореневу папку проекту
-   docker build -t your-dockerhub-user/exchange-app:latest .
-   
-   # Запуште образ у Docker Hub
-   docker push your-dockerhub-user/exchange-app:latest
-   ```
+> [!NOTE]
+> Щоб workflow мав права на запис пакетів, переконайтеся, що в налаштуваннях репозиторію **Settings -> Actions -> General -> Workflow permissions** увімкнено опцію **Read and write permissions**.
 
 ---
 
@@ -109,13 +98,13 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
    ```bash
    nano docker-compose.yml
    ```
-   Вставте туди конфігурацію (замініть `your-dockerhub-user` на ваше ім'я в Docker Hub):
+   Вставте туди конфігурацію:
    ```yaml
    version: '3.8'
 
    services:
      web:
-       image: your-dockerhub-user/exchange-app:latest
+       image: ghcr.io/yarovision/exchange:latest
        container_name: kronos-web
        env_file:
          - .env
@@ -138,14 +127,14 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
    ```bash
    nano .env
    ```
-   Вставте параметри Supabase та Flask:
+   Вставте ваші параметри Supabase та Flask:
    ```env
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_KEY=your-anon-or-service-role-key
    FLASK_SECRET_KEY=генеруйте_будь-який_випадковий_довгий_рядок
    ```
 
-4. Запустіть додаток:
+4. Запустіть додаток (за потреби спочатку виконайте `docker login ghcr.io` з вашим GitHub token, якщо пакет приватний):
    ```bash
    # Завантажити найновіший образ та запустити контейнер
    docker compose pull && docker compose up -d
@@ -167,7 +156,7 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
   ```bash
   docker compose down
   ```
-* **Оновлення версії додатку після пушу в Docker Hub:**
+* **Оновлення версії додатку після завершення збірки GitHub Actions:**
   ```bash
   cd /var/www/kronos
   docker compose pull
