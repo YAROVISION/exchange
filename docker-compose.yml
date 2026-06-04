@@ -13,6 +13,8 @@ services:
       - traefik.http.routers.kronos.entrypoints=websecure
       - traefik.http.routers.kronos.tls.certresolver=letsencrypt
       - traefik.http.services.kronos.loadbalancer.server.port=7070
+    volumes:
+      - ./finetuned:/app/finetune_csv/finetuned
     networks:
       - traefik-proxy
 

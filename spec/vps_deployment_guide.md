@@ -115,6 +115,8 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
          - traefik.http.routers.kronos.entrypoints=websecure
          - traefik.http.routers.kronos.tls.certresolver=letsencrypt
          - traefik.http.services.kronos.loadbalancer.server.port=7070
+       volumes:
+         - ./finetuned:/app/finetune_csv/finetuned
        networks:
          - traefik-proxy
 
@@ -123,7 +125,16 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
        external: true
    ```
 
-3. Створіть конфігураційний файл `.env` у тій же папці:
+3. Перенесіть ваші локально донавчені моделі на VPS:
+   Оскільки великі файли моделей та ваг важать багато й не завантажуються на GitHub (вони додані в `.gitignore`), вам потрібно скопіювати папку `finetune_csv/finetuned/` з вашого комп'ютера на VPS:
+   
+   Виконайте команду на вашому локальному комп'ютері (в терміналі macOS):
+   ```bash
+   scp -r /Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned root@IP_адреса_вашого_VPS:/var/www/kronos/
+   ```
+   *Ця команда скопіює папку `finetuned` в робочу папку `/var/www/kronos/` на VPS, де її підхопить Docker Compose через монтування (volume mount).*
+
+4. Створіть конфігураційний файл `.env` у папці `/var/www/kronos` на VPS:
    ```bash
    nano .env
    ```
@@ -134,7 +145,7 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
    FLASK_SECRET_KEY=генеруйте_будь-який_випадковий_довгий_рядок
    ```
 
-4. Запустіть додаток (за потреби спочатку виконайте `docker login ghcr.io` з вашим GitHub token, якщо пакет приватний):
+5. Запустіть додаток:
    ```bash
    # Завантажити найновіший образ та запустити контейнер
    docker compose pull && docker compose up -d
