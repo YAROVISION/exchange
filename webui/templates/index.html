@@ -1182,6 +1182,28 @@
                     </div>
                 </div>
 
+                <!-- Yesterday's Rate Section -->
+                <div id="yesterday-rate-section" class="comparison-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
+                    <h3>📅 Вчорашній курс</h3>
+                    <div id="yesterday-rate-info" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; font-size: 14px; background: var(--coffee-latte); padding: 12px; border-radius: 6px; border: 1px solid var(--coffee-light); color: var(--coffee-dark);">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px 20px;">
+                            <span>Дата: <strong id="yesterday-date-text">-</strong></span>
+                            <span>Відкриття: <strong id="yesterday-open-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Максимум: <strong id="yesterday-high-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Мінімум: <strong id="yesterday-low-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Закриття: <strong id="yesterday-close-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Зміна: <strong id="yesterday-change-text" class="price-item">-</strong></span>
+                        </div>
+                        <div style="font-size: 14px; border-top: 1px dashed var(--coffee-light); padding-top: 8px; margin-top: 5px;">
+                            💰 Потенційний виграш за вчора (різниця High/Low на 1 BTC):
+                            <div style="margin-top: 5px; display: flex; gap: 20px;">
+                                <span>У доларах: <strong id="yesterday-win-usd" style="color: #4caf50; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong></span>
+                                <span>У біткоїнах: <strong id="yesterday-win-btc" style="color: #4caf50; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="chart"></div>
 
                 <div id="bias-info-box" class="bias-info-box" style="display: none;">
@@ -1833,6 +1855,45 @@
                     </td>
                 `;
                 tbody.appendChild(emptyRow);
+            }
+            
+            // Display yesterday's rate details
+            if (data.yesterday_rate) {
+                const yRate = data.yesterday_rate;
+                const yDate = new Date(yRate.date).toLocaleDateString();
+                const yOpen = yRate.open;
+                const yHigh = yRate.high;
+                const yLow = yRate.low;
+                const yClose = yRate.close;
+                
+                const changeUsd = yClose - yOpen;
+                const changePct = (changeUsd / yOpen) * 100;
+                
+                const winUsd = yHigh - yLow;
+                const winBtc = winUsd / yLow;
+                
+                document.getElementById('yesterday-date-text').textContent = yDate;
+                document.getElementById('yesterday-open-text').textContent = `$${yOpen.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('yesterday-high-text').textContent = `$${yHigh.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('yesterday-low-text').textContent = `$${yLow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('yesterday-close-text').textContent = `$${yClose.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                // Color coding for change
+                const changeEl = document.getElementById('yesterday-change-text');
+                const changeSign = changeUsd >= 0 ? '+' : '';
+                changeEl.textContent = `${changeSign}$${changeUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${changeSign}${changePct.toFixed(2)}%)`;
+                if (changeUsd >= 0) {
+                    changeEl.style.color = '#4caf50'; // Green
+                } else {
+                    changeEl.style.color = '#f44336'; // Red
+                }
+                
+                document.getElementById('yesterday-win-usd').textContent = `$${winUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('yesterday-win-btc').textContent = `${winBtc.toFixed(8)} BTC`;
+                
+                document.getElementById('yesterday-rate-section').style.display = 'block';
+            } else {
+                document.getElementById('yesterday-rate-section').style.display = 'none';
             }
             
             document.getElementById('today-rate-section').style.display = 'block';

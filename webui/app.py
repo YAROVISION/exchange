@@ -1568,12 +1568,27 @@ def get_today_data():
             'volume': float(last_row['volume']) if 'volume' in last_row else 0
         }
         
+        # Get the second-to-last row (yesterday)
+        yesterday_rate = None
+        if len(df) >= 2:
+            yesterday_row = df.iloc[-2]
+            yesterday_date = yesterday_row['timestamps']
+            yesterday_rate = {
+                'date': yesterday_date.strftime('%Y-%m-%d'),
+                'open': float(yesterday_row['open']),
+                'high': float(yesterday_row['high']),
+                'low': float(yesterday_row['low']),
+                'close': float(yesterday_row['close']),
+                'volume': float(yesterday_row['volume']) if 'volume' in yesterday_row else 0
+            }
+        
         # Find all forecasts made for this target date
         forecasts = get_forecasts_for_date(target_date_str)
         
         return jsonify({
             'success': True,
             'actual_rate': actual_rate,
+            'yesterday_rate': yesterday_rate,
             'forecasts': forecasts
         })
     except Exception as e:
