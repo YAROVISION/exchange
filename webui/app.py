@@ -80,6 +80,9 @@ def load_model_by_key(model_key, device='cpu'):
     predictor = KronosPredictor(model, tokenizer, device=device, max_context=model_config['context_length'])
     return model_config
 
+# Project root directory for resolving local model paths
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Available model configurations
 AVAILABLE_MODELS = {
     'kronos-mini': {
@@ -108,16 +111,16 @@ AVAILABLE_MODELS = {
     },
     'btc-weekly-finetuned': {
         'name': 'BTC Weekly (Донавчена)',
-        'model_id': '/Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned/btc_weekly_finetuned/basemodel/best_model',
-        'tokenizer_id': '/Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned/btc_weekly_finetuned/tokenizer/best_model',
+        'model_id': os.path.join(PROJECT_ROOT, 'finetune_csv', 'finetuned', 'btc_weekly_finetuned', 'basemodel', 'best_model'),
+        'tokenizer_id': os.path.join(PROJECT_ROOT, 'finetune_csv', 'finetuned', 'btc_weekly_finetuned', 'tokenizer', 'best_model'),
         'context_length': 512,
         'params': 'Локальна 24.7M',
         'description': 'Ваша локально донавчена модель для тижневих даних BTC'
     },
     'btc-daily-finetuned': {
         'name': 'BTC Daily (Донавчена)',
-        'model_id': '/Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned/btc_daily_finetuned/basemodel/best_model',
-        'tokenizer_id': '/Users/kostantinkrivula/Desktop/Kronos-master/finetune_csv/finetuned/btc_daily_finetuned/tokenizer/best_model',
+        'model_id': os.path.join(PROJECT_ROOT, 'finetune_csv', 'finetuned', 'btc_daily_finetuned', 'basemodel', 'best_model'),
+        'tokenizer_id': os.path.join(PROJECT_ROOT, 'finetune_csv', 'finetuned', 'btc_daily_finetuned', 'tokenizer', 'best_model'),
         'context_length': 512,
         'params': 'Локальна 24.7M',
         'description': 'Ваша локально донавчена модель для денних даних BTC'
