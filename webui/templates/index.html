@@ -1201,6 +1201,8 @@
                                 <span>У біткоїнах: <strong id="yesterday-win-btc" style="color: #4caf50; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong></span>
                             </div>
                         </div>
+                        <!-- Yesterday Intraday Chart -->
+                        <div id="yesterday-chart" style="display: none; height: 230px; margin-top: 12px; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
                     </div>
                 </div>
 
@@ -1891,6 +1893,9 @@
                 document.getElementById('yesterday-win-usd').textContent = `$${winUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 document.getElementById('yesterday-win-btc').textContent = `${winBtc.toFixed(8)} BTC`;
                 
+                // Load intraday kline chart for yesterday
+                loadYesterdayChart(yRate.date);
+                
                 document.getElementById('yesterday-rate-section').style.display = 'block';
             } else {
                 document.getElementById('yesterday-rate-section').style.display = 'none';
@@ -2452,6 +2457,85 @@
             updateUtcCountdown();
             if (utcCountdownInterval) clearInterval(utcCountdownInterval);
             utcCountdownInterval = setInterval(updateUtcCountdown, 1000);
+        }
+
+        // Fetch and load hourly chart for yesterday
+        async function loadYesterdayChart(yesterdayDateStr) {
+            try {
+                const yDate = new Date(yesterdayDateStr);
+                const startTime = Date.UTC(yDate.getUTCFullYear(), yDate.getUTCMonth(), yDate.getUTCDate(), 0, 0, 0, 0);
+                const endTime = Date.UTC(yDate.getUTCFullYear(), yDate.getUTCMonth(), yDate.getUTCDate(), 23, 59, 59, 999);
+                
+                const response = await axios.get(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=${startTime}&endTime=${endTime}`);
+                const klines = response.data;
+                
+                if (!klines || klines.length === 0) {
+                    document.getElementById('yesterday-chart').style.display = 'none';
+                    return;
+                }
+                
+                const times = [];
+                const prices = [];
+                
+                klines.forEach(k => {
+                    const time = new Date(k[0]);
+                    const hour = String(time.getUTCHours()).padStart(2, '0') + ':00';
+                    times.push(hour);
+                    prices.push(parseFloat(k[4])); // Hourly close price
+                });
+                
+                const firstPrice = prices[0];
+                const lastPrice = prices[prices.length - 1];
+                const isPositive = lastPrice >= firstPrice;
+                const lineColor = isPositive ? '#4caf50' : '#f44336';
+                const fillColor = isPositive ? 'rgba(76, 175, 80, 0.08)' : 'rgba(244, 67, 54, 0.08)';
+                
+                const trace = {
+                    x: times,
+                    y: prices,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: lineColor,
+                        width: 2
+                    },
+                    fill: 'tozeroy',
+                    fillcolor: fillColor,
+                    hoverinfo: 'x+y'
+                };
+                
+                const layout = {
+                    margin: { t: 15, b: 30, l: 55, r: 15 },
+                    height: 200,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    xaxis: {
+                        gridcolor: 'rgba(218, 192, 163, 0.15)',
+                        tickcolor: 'var(--coffee-dark)',
+                        tickfont: { color: 'var(--coffee-dark)', size: 9 },
+                        nticks: 12
+                    },
+                    yaxis: {
+                        gridcolor: 'rgba(218, 192, 163, 0.15)',
+                        tickcolor: 'var(--coffee-dark)',
+                        tickfont: { color: 'var(--coffee-dark)', size: 9 },
+                        tickformat: '$,.0f'
+                    },
+                    showlegend: false
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: false
+                };
+                
+                document.getElementById('yesterday-chart').style.display = 'block';
+                Plotly.newPlot('yesterday-chart', [trace], layout, config);
+                
+            } catch (error) {
+                console.error('❌ Failed to load yesterday klines chart:', error);
+                document.getElementById('yesterday-chart').style.display = 'none';
+            }
         }
 
         // Fine-tuning JavaScript Logic
