@@ -929,12 +929,13 @@ def check_and_update_btc_data(current_file_path):
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         current_date_utc = pd.to_datetime(now_utc.date())
         
-        # If the last date in the CSV is already today or later, we don't need to fetch
-        if last_date >= current_date_utc:
+        # If the last date in the CSV is strictly greater than today, we don't need to fetch
+        if last_date > current_date_utc:
             return file_to_read, False, None, None
             
-        # Convert last_date to millisecond timestamp (add 1 day to query starting from the next day)
-        query_start_time = int((last_date + pd.Timedelta(days=1)).timestamp() * 1000)
+        # Convert last_date to millisecond timestamp (subtract 1 day to query starting from the day before last_date)
+        # This ensures we re-fetch and overwrite the last recorded day, which might have been saved while in-progress.
+        query_start_time = int((last_date - pd.Timedelta(days=1)).timestamp() * 1000)
         
         # Binance Kline API symbol: BTCUSDT, interval: 1d
         url = f"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime={query_start_time}&limit=1000"
@@ -954,16 +955,15 @@ def check_and_update_btc_data(current_file_path):
         for k in klines:
             dt = datetime.datetime.fromtimestamp(k[0] / 1000, tz=datetime.timezone.utc).strftime('%Y-%m-%d')
             dt_ts = pd.to_datetime(dt)
-            if dt_ts > last_date:
-                new_rows.append({
-                    'timestamps': dt_ts,
-                    'open': float(k[1]),
-                    'high': float(k[2]),
-                    'low': float(k[3]),
-                    'close': float(k[4]),
-                    'volume': float(k[5]),
-                    'amount': float(k[7]) # Quote asset volume is USDT amount
-                })
+            new_rows.append({
+                'timestamps': dt_ts,
+                'open': float(k[1]),
+                'high': float(k[2]),
+                'low': float(k[3]),
+                'close': float(k[4]),
+                'volume': float(k[5]),
+                'amount': float(k[7]) # Quote asset volume is USDT amount
+            })
                 
         if not new_rows:
             return file_to_read, False, None, None
