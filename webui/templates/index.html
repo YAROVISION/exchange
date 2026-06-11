@@ -612,17 +612,21 @@
                 font-size: 12px;
             }
         }
+
         .real-rate-row {
             background-color: #c7eed8 !important;
             font-weight: bold;
         }
+
         .real-rate-row td {
             color: #1b5e20 !important;
             border-color: #a3cfbb !important;
         }
+
         .forecast-row {
             background-color: #f7eedf !important;
         }
+
         .forecast-row td {
             color: var(--coffee-dark) !important;
             border-color: var(--coffee-light) !important;
@@ -677,7 +681,7 @@
             padding: 15px;
             font-size: 13px;
             color: var(--text-dark);
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .position-log-box h4 {
@@ -819,12 +823,12 @@
             color: white;
             font-family: inherit;
             transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
         .btn-trade-action:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
         }
 
         .btn-trade-action:active {
@@ -1043,7 +1047,7 @@
                 <div id="exchange-tab-content" class="tab-content" style="display: none;">
                     <h2>🏦 Симулятор торгівлі BTC</h2>
                     <div id="exchange-login-prompt" style="display: none; background: #FFF3CD; color: #856404; border: 1px solid #FFEBAA; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; font-size: 14px; text-align: center;"></div>
-                    
+
                     <div class="exchange-container">
                         <!-- Wallet & Price Display -->
                         <div class="exchange-wallet-grid">
@@ -1088,10 +1092,100 @@
                                 </div>
                                 <small class="form-text" id="trade-fee-info">Комісія біржі: 0.1% (кнопками регулюється по 0.0001 BTC)</small>
                             </div>
-                            
+
                             <button id="trade-action-btn" class="btn-trade-action buy-mode" onclick="executeTrade()">
                                 Купити BTC
                             </button>
+
+                            <!-- Buy Limit Section -->
+                            <div class="buy-limit-section" style="margin-top: 15px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
+                                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
+                                    🎯 Buy Limit ордер
+                                </h4>
+                                
+                                <div id="limit-order-locked-banner" style="display: none; background: rgba(76, 175, 80, 0.1); color: #1b5e20; border: 1px solid rgba(76, 175, 80, 0.3); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; font-weight: 600; text-align: center;">
+                                    🔒 Зарезервовано під ордер: <span id="locked-usd-display">$0.00</span>
+                                    <div style="margin-top: 3px; font-size: 11px; font-weight: 500; opacity: 0.85;">Ціна активації: <span id="locked-price-display">$0.00</span> / BTC</div>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                        <label for="limit-usd-amount" style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Сума (USD):</label>
+                                        <div class="trade-input-container" style="height: 38px;">
+                                            <input type="text" id="limit-usd-amount" placeholder="0.00" style="padding: 0 8px; font-size: 13px; padding-right: 4px; text-align: left;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--coffee-accent); padding: 0 8px 0 2px; white-space: nowrap; pointer-events: none; flex-shrink: 0;">USD</span>
+                                        </div>
+                                    </div>
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                        <label for="limit-btc-amount" style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Кількість (BTC):</label>
+                                        <div class="trade-input-container" style="height: 38px;">
+                                            <input type="text" id="limit-btc-amount" placeholder="0.00000000" style="padding: 0 8px; font-size: 13px; padding-right: 4px; text-align: left;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--coffee-accent); padding: 0 8px 0 2px; white-space: nowrap; pointer-events: none; flex-shrink: 0;">BTC</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Ціна активації BTC (за 1 BTC):</label>
+                                    <div class="trade-input-container">
+                                        <button class="adjust-btn" id="limit-price-minus-btn" onclick="adjustLimitPrice(-100)">-</button>
+                                        <input type="text" id="limit-price-input" placeholder="0.00">
+                                        <button class="adjust-btn" id="limit-price-plus-btn" onclick="adjustLimitPrice(100)">+</button>
+                                        <span class="suffix">USD</span>
+                                    </div>
+                                    <small class="form-text">Кнопками регулюється по $100</small>
+                                </div>
+
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="limit-apply-btn" class="btn" style="flex: 1; margin: 0; padding: 8px 12px; font-size: 13px; background-color: var(--coffee-dark); color: white;" onclick="applyLimitOrder()">Застосувати</button>
+                                    <button id="limit-cancel-btn" class="btn btn-secondary" style="flex: 1; margin: 0; padding: 8px 12px; font-size: 13px;" onclick="cancelLimitOrder()" disabled>Відмінити</button>
+                                </div>
+                            </div>
+
+                            <!-- Sell Limit Section -->
+                            <div class="sell-limit-section" style="margin-top: 15px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
+                                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
+                                    🎯 Sell Limit ордер
+                                </h4>
+                                
+                                <div id="sell-limit-order-locked-banner" style="display: none; background: rgba(239, 83, 80, 0.1); color: #c62828; border: 1px solid rgba(239, 83, 80, 0.3); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; font-weight: 600; text-align: center;">
+                                    🔒 Зарезервовано під ордер: <span id="locked-btc-display">0.00000000 BTC</span>
+                                    <div style="margin-top: 3px; font-size: 11px; font-weight: 500; opacity: 0.85;">Ціна активації: <span id="locked-sell-price-display">$0.00</span> / BTC</div>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                        <label for="sell-limit-usd-amount" style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Сума (USD):</label>
+                                        <div class="trade-input-container" style="height: 38px;">
+                                            <input type="text" id="sell-limit-usd-amount" placeholder="0.00" style="padding: 0 8px; font-size: 13px; padding-right: 4px; text-align: left;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--coffee-accent); padding: 0 8px 0 2px; white-space: nowrap; pointer-events: none; flex-shrink: 0;">USD</span>
+                                        </div>
+                                    </div>
+                                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                        <label for="sell-limit-btc-amount" style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Кількість (BTC):</label>
+                                        <div class="trade-input-container" style="height: 38px;">
+                                            <input type="text" id="sell-limit-btc-amount" placeholder="0.00000000" style="padding: 0 8px; font-size: 13px; padding-right: 4px; text-align: left;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--coffee-accent); padding: 0 8px 0 2px; white-space: nowrap; pointer-events: none; flex-shrink: 0;">BTC</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 11px; font-weight: bold; color: var(--coffee-dark);">Ціна активації BTC (за 1 BTC):</label>
+                                    <div class="trade-input-container">
+                                        <button class="adjust-btn" id="sell-limit-price-minus-btn" onclick="adjustSellLimitPrice(-100)">-</button>
+                                        <input type="text" id="sell-limit-price-input" placeholder="0.00">
+                                        <button class="adjust-btn" id="sell-limit-price-plus-btn" onclick="adjustSellLimitPrice(100)">+</button>
+                                        <span class="suffix">USD</span>
+                                    </div>
+                                    <small class="form-text">Кнопками регулюється по $100</small>
+                                </div>
+
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="sell-limit-apply-btn" class="btn" style="flex: 1; margin: 0; padding: 8px 12px; font-size: 13px; background-color: var(--coffee-dark); color: white;" onclick="applySellLimitOrder()">Застосувати</button>
+                                    <button id="sell-limit-cancel-btn" class="btn btn-secondary" style="flex: 1; margin: 0; padding: 8px 12px; font-size: 13px;" onclick="cancelSellLimitOrder()" disabled>Відмінити</button>
+                                </div>
+                            </div>
                         </div>
 
                         <div style="text-align: center;">
@@ -1106,17 +1200,17 @@
                 <div id="auth-tab-content" class="tab-content" style="display: none;">
                     <div id="auth-unlogged-view">
                         <h2 id="auth-title">🔐 Вхід у систему</h2>
-                        
+
                         <div class="form-group">
                             <label for="auth-email">Email:</label>
                             <input type="email" id="auth-email" placeholder="example@gmail.com" required>
                         </div>
-                        
+
                         <div class="form-group" style="margin-top: 15px;">
                             <label for="auth-password">Пароль:</label>
                             <input type="password" id="auth-password" placeholder="••••••••" required>
                         </div>
-                        
+
                         <div style="display: flex; gap: 10px; margin-top: 20px;">
                             <button id="btn-login-submit" class="btn" onclick="handleLogin()" style="flex: 1; margin-bottom: 0;">
                                 Увійти
@@ -1125,10 +1219,10 @@
                                 Реєстрація
                             </button>
                         </div>
-                        
+
                         <div id="auth-error-msg" style="color: #ff4d4d; font-size: 13px; margin-top: 15px; display: none; text-align: center; font-weight: 500;"></div>
                     </div>
-                    
+
                     <div id="auth-logged-view" style="display: none;">
                         <h2>👤 Особистий кабінет</h2>
                         <div class="exchange-card" style="padding: 15px; margin-bottom: 15px; border-radius: 8px; background: var(--coffee-latte); border: 1px solid var(--coffee-light);">
@@ -1136,7 +1230,7 @@
                             <div id="auth-user-display" style="font-size: 18px; font-weight: bold; color: var(--coffee-espresso); margin-top: 5px; word-break: break-all;">-</div>
                             <div id="auth-role-display" style="font-size: 13px; color: var(--coffee-accent); margin-top: 5px; font-weight: 600;">Роль: Звичайний користувач</div>
                         </div>
-                        
+
                         <button id="btn-logout" class="btn btn-danger" onclick="handleLogout()" style="width: 100%;">
                             🚪 Вийти з акаунта
                         </button>
@@ -1154,20 +1248,32 @@
                 <h2>📈 Графік результатів прогнозування</h2>
                 <!-- Tomorrow Forecast Line -->
                 <div id="tomorrow-forecast-box" class="tomorrow-forecast-box" style="display: none;"></div>
-                
+
                 <!-- Today's Rate and Forecasts Section -->
                 <div id="today-rate-section" class="comparison-section" style="display: none; margin-top: 20px; margin-bottom: 20px;">
                     <h3>📅 Сьогодні торги відкрились на позначці</h3>
                     <div id="today-rate-info" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; font-size: 14px; background: var(--coffee-latte); padding: 12px; border-radius: 6px; border: 1px solid var(--coffee-light); color: var(--coffee-dark);">
-                        <div style="display: flex; gap: 20px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px 20px;">
                             <span>Дата: <strong id="today-date-text">-</strong></span>
-                            <span>Курс відкриття: <strong id="today-open-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Відкриття: <strong id="today-open-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Максимум: <strong id="today-high-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Мінімум: <strong id="today-low-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Поточний курс: <strong id="today-current-price-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Актуальний час: <strong id="today-current-time-text" class="price-item" style="color: var(--coffee-espresso);">-</strong></span>
+                            <span>Зміна: <strong id="today-change-text" class="price-item">-</strong></span>
                         </div>
                         <div style="font-size: 14px; border-top: 1px dashed var(--coffee-light); padding-top: 8px; margin-top: 5px;">
-                            ⏳ До закриття залишилось: <strong id="time-to-close-text" style="color: #d9534f; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong> (UTC)
+                            💰 Потенційний виграш за сьогодні (різниця High/Low на 1 BTC):
+                            <div style="margin-top: 5px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                                <span>У доларах: <strong id="today-win-usd" style="color: #4caf50; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong></span>
+                                <span>У біткоїнах: <strong id="today-win-btc" style="color: #4caf50; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong></span>
+                                <span style="margin-left: auto;">⏳ До закриття залишилось: <strong id="time-to-close-text" style="color: #d9534f; font-family: 'JetBrains Mono', monospace; font-size: 15px;">-</strong> (UTC)</span>
+                            </div>
                         </div>
+                        <!-- Today Intraday Chart -->
+                        <div id="today-chart" style="display: none; height: 230px; width: 95%; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
                     </div>
-                    
+
                     <div style="max-height: 250px; overflow-y: auto;">
                         <table class="comparison-table">
                             <thead>
@@ -1298,6 +1404,26 @@
         let availableModels = [];
         let modelLoaded = false;
 
+        // Today's rate dynamic variables
+        let todayOpenPrice = null;
+        let todayHighPrice = null;
+        let todayLowPrice = null;
+        let todayCurrentPrice = null;
+        let todayDateStr = null;
+        let lastTodayChartFetchTime = 0;
+
+        // Limit Order variables
+        let isLimitOrderActive = false;
+        let activeLimitOrder = null;
+        let lastActiveLimitInput = 'btc';
+        let isExecutingLimitOrder = false; // Lock to prevent concurrent execution calls
+
+        // Sell Limit Order variables
+        let isSellLimitOrderActive = false;
+        let activeSellLimitOrder = null;
+        let lastActiveSellLimitInput = 'btc';
+        let isExecutingSellLimitOrder = false; // Lock to prevent concurrent execution calls
+
         // Initialize after page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
@@ -1315,6 +1441,8 @@
 
             // Set up event listeners
             setupEventListeners();
+            setupLimitOrderListeners();
+            setupSellLimitOrderListeners();
 
             // Load today's rate and forecasts
             await loadTodayData();
@@ -1592,7 +1720,7 @@
                     // Display prediction results
                     displayPredictionResult(response.data);
                     showStatus('success', response.data.message);
-                    
+
                     // Reload today's rate and forecasts
                     await loadTodayData();
                 } else {
@@ -1819,16 +1947,28 @@
                 document.getElementById('today-rate-section').style.display = 'none';
                 return;
             }
-            
+
             const rate = data.actual_rate;
             const formattedDate = new Date(rate.date).toLocaleDateString();
-            
+
+            // Initialize dynamic price statistics for today
+            todayOpenPrice = rate.open;
+            todayHighPrice = rate.high || rate.open;
+            todayLowPrice = rate.low || rate.open;
+            todayCurrentPrice = rate.close || rate.open;
+            todayDateStr = rate.date;
+
             document.getElementById('today-date-text').textContent = formattedDate;
-            document.getElementById('today-open-text').textContent = `$${rate.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            
+
+            // Initial render of dynamic price fields
+            updateTodayUIPriceStats();
+
+            // Fetch and render today's hourly chart
+            loadTodayChart(todayDateStr);
+
             const tbody = document.getElementById('today-forecasts-tbody');
             tbody.innerHTML = '';
-            
+
             // Add real course row first
             const realRow = document.createElement('tr');
             realRow.className = 'real-rate-row';
@@ -1837,7 +1977,7 @@
                 <td>$${rate.open.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             `;
             tbody.appendChild(realRow);
-            
+
             // Add all forecast rows
             if (data.forecasts && data.forecasts.length > 0) {
                 data.forecasts.forEach(pred => {
@@ -1858,7 +1998,7 @@
                 `;
                 tbody.appendChild(emptyRow);
             }
-            
+
             // Display yesterday's rate details
             if (data.yesterday_rate) {
                 const yRate = data.yesterday_rate;
@@ -1867,19 +2007,19 @@
                 const yHigh = yRate.high;
                 const yLow = yRate.low;
                 const yClose = yRate.close;
-                
+
                 const changeUsd = yClose - yOpen;
                 const changePct = (changeUsd / yOpen) * 100;
-                
+
                 const winUsd = yHigh - yLow;
                 const winBtc = winUsd / yLow;
-                
+
                 document.getElementById('yesterday-date-text').textContent = yDate;
                 document.getElementById('yesterday-open-text').textContent = `$${yOpen.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 document.getElementById('yesterday-high-text').textContent = `$${yHigh.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 document.getElementById('yesterday-low-text').textContent = `$${yLow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 document.getElementById('yesterday-close-text').textContent = `$${yClose.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                
+
                 // Color coding for change
                 const changeEl = document.getElementById('yesterday-change-text');
                 const changeSign = changeUsd >= 0 ? '+' : '';
@@ -1889,18 +2029,18 @@
                 } else {
                     changeEl.style.color = '#f44336'; // Red
                 }
-                
+
                 document.getElementById('yesterday-win-usd').textContent = `$${winUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 document.getElementById('yesterday-win-btc').textContent = `${winBtc.toFixed(8)} BTC`;
-                
+
                 // Load intraday kline chart for yesterday
                 loadYesterdayChart(yRate.date);
-                
+
                 document.getElementById('yesterday-rate-section').style.display = 'block';
             } else {
                 document.getElementById('yesterday-rate-section').style.display = 'none';
             }
-            
+
             document.getElementById('today-rate-section').style.display = 'block';
         }
 
@@ -1927,8 +2067,7 @@
             document.getElementById('top-p').addEventListener('input', function() {
                 document.getElementById('top-p-value').textContent = this.value;
             });
-
-
+            setupLimitOrderListeners();
         }
 
         // Display status information
@@ -1992,7 +2131,7 @@
             try {
                 const response = await fetch('/api/auth/status');
                 const data = await response.json();
-                
+
                 isLoggedIn = data.logged_in;
                 if (isLoggedIn) {
                     userEmail = data.user.email;
@@ -2000,7 +2139,7 @@
                     document.getElementById('auth-logged-view').style.display = 'block';
                     document.getElementById('auth-user-display').textContent = userEmail;
                     document.getElementById('tab-auth-btn').textContent = `👤 Кабінет`;
-                    
+
                     const roleEl = document.getElementById('auth-role-display');
                     if (userEmail === 'yarovision@gmail.com') {
                         roleEl.textContent = 'Роль: Головний Адміністратор';
@@ -2009,7 +2148,7 @@
                         roleEl.textContent = 'Роль: Звичайний користувач';
                         roleEl.style.color = 'var(--coffee-accent)';
                     }
-                    
+
                     // Fetch wallet and history from server
                     await fetchCloudWallet();
                 } else {
@@ -2017,12 +2156,20 @@
                     document.getElementById('auth-unlogged-view').style.display = 'block';
                     document.getElementById('auth-logged-view').style.display = 'none';
                     document.getElementById('tab-auth-btn').textContent = `🔐 Вхід/Реєстрація`;
-                    
+
                     walletUsd = 100.00;
                     walletBtc = 0.00000000;
                     activePosition = null;
+
+                    isLimitOrderActive = false;
+                    activeLimitOrder = null;
+                    renderLimitOrderState();
+
+                    isSellLimitOrderActive = false;
+                    activeSellLimitOrder = null;
+                    renderSellLimitOrderState();
                 }
-                
+
                 updateExchangeUI();
                 updateButtonStates();
             } catch (e) {
@@ -2052,6 +2199,26 @@
                     } else {
                         activePosition = null;
                     }
+
+                    // Restore active limit order state from server wallet response
+                    if (data.active_limit_order) {
+                        isLimitOrderActive = true;
+                        activeLimitOrder = data.active_limit_order;
+                    } else {
+                        isLimitOrderActive = false;
+                        activeLimitOrder = null;
+                    }
+                    renderLimitOrderState();
+
+                    // Restore active sell limit order state from server wallet response
+                    if (data.active_sell_limit_order) {
+                        isSellLimitOrderActive = true;
+                        activeSellLimitOrder = data.active_sell_limit_order;
+                    } else {
+                        isSellLimitOrderActive = false;
+                        activeSellLimitOrder = null;
+                    }
+                    renderSellLimitOrderState();
                 }
             } catch (e) {
                 console.error("Error fetching cloud wallet:", e);
@@ -2067,7 +2234,25 @@
             const tradeAmountInput = document.getElementById('trade-btc-amount');
             const adjustBtns = document.querySelectorAll('.adjust-btn');
             const btcPrompt = document.getElementById('exchange-login-prompt');
-            
+
+            // limit order buttons
+            const limitApplyBtn = document.getElementById('limit-apply-btn');
+            const limitCancelBtn = document.getElementById('limit-cancel-btn');
+            const limitUsdInput = document.getElementById('limit-usd-amount');
+            const limitBtcInput = document.getElementById('limit-btc-amount');
+            const limitPriceInput = document.getElementById('limit-price-input');
+            const limitPriceMinusBtn = document.getElementById('limit-price-minus-btn');
+            const limitPricePlusBtn = document.getElementById('limit-price-plus-btn');
+
+            // sell limit order buttons
+            const sellLimitApplyBtn = document.getElementById('sell-limit-apply-btn');
+            const sellLimitCancelBtn = document.getElementById('sell-limit-cancel-btn');
+            const sellLimitUsdInput = document.getElementById('sell-limit-usd-amount');
+            const sellLimitBtcInput = document.getElementById('sell-limit-btc-amount');
+            const sellLimitPriceInput = document.getElementById('sell-limit-price-input');
+            const sellLimitPriceMinusBtn = document.getElementById('sell-limit-price-minus-btn');
+            const sellLimitPricePlusBtn = document.getElementById('sell-limit-price-plus-btn');
+
             if (isLoggedIn) {
                 if (exchangeActionBtn) exchangeActionBtn.removeAttribute('disabled');
                 if (resetGameBtn) resetGameBtn.removeAttribute('disabled');
@@ -2076,6 +2261,34 @@
                 if (tradeAmountInput) tradeAmountInput.removeAttribute('disabled');
                 adjustBtns.forEach(btn => btn.removeAttribute('disabled'));
                 if (btcPrompt) btcPrompt.style.display = 'none';
+
+                if (limitApplyBtn) {
+                    if (isLimitOrderActive) limitApplyBtn.setAttribute('disabled', 'true');
+                    else limitApplyBtn.removeAttribute('disabled');
+                }
+                if (limitCancelBtn) {
+                    if (isLimitOrderActive) limitCancelBtn.removeAttribute('disabled');
+                    else limitCancelBtn.setAttribute('disabled', 'true');
+                }
+                if (limitUsdInput && !isLimitOrderActive) limitUsdInput.removeAttribute('disabled');
+                if (limitBtcInput && !isLimitOrderActive) limitBtcInput.removeAttribute('disabled');
+                if (limitPriceInput && !isLimitOrderActive) limitPriceInput.removeAttribute('disabled');
+                if (limitPriceMinusBtn && !isLimitOrderActive) limitPriceMinusBtn.removeAttribute('disabled');
+                if (limitPricePlusBtn && !isLimitOrderActive) limitPricePlusBtn.removeAttribute('disabled');
+
+                if (sellLimitApplyBtn) {
+                    if (isSellLimitOrderActive) sellLimitApplyBtn.setAttribute('disabled', 'true');
+                    else sellLimitApplyBtn.removeAttribute('disabled');
+                }
+                if (sellLimitCancelBtn) {
+                    if (isSellLimitOrderActive) sellLimitCancelBtn.removeAttribute('disabled');
+                    else sellLimitCancelBtn.setAttribute('disabled', 'true');
+                }
+                if (sellLimitUsdInput && !isSellLimitOrderActive) sellLimitUsdInput.removeAttribute('disabled');
+                if (sellLimitBtcInput && !isSellLimitOrderActive) sellLimitBtcInput.removeAttribute('disabled');
+                if (sellLimitPriceInput && !isSellLimitOrderActive) sellLimitPriceInput.removeAttribute('disabled');
+                if (sellLimitPriceMinusBtn && !isSellLimitOrderActive) sellLimitPriceMinusBtn.removeAttribute('disabled');
+                if (sellLimitPricePlusBtn && !isSellLimitOrderActive) sellLimitPricePlusBtn.removeAttribute('disabled');
             } else {
                 if (exchangeActionBtn) exchangeActionBtn.setAttribute('disabled', 'true');
                 if (resetGameBtn) resetGameBtn.setAttribute('disabled', 'true');
@@ -2083,7 +2296,25 @@
                 if (sellModeBtn) sellModeBtn.setAttribute('disabled', 'true');
                 if (tradeAmountInput) tradeAmountInput.setAttribute('disabled', 'true');
                 adjustBtns.forEach(btn => btn.setAttribute('disabled', 'true'));
-                
+                if (limitPriceInput) limitPriceInput.setAttribute('disabled', 'true');
+                if (limitPriceMinusBtn) limitPriceMinusBtn.setAttribute('disabled', 'true');
+                if (limitPricePlusBtn) limitPricePlusBtn.setAttribute('disabled', 'true');
+
+                if (limitApplyBtn) limitApplyBtn.setAttribute('disabled', 'true');
+                if (limitCancelBtn) limitCancelBtn.setAttribute('disabled', 'true');
+                if (limitUsdInput) limitUsdInput.setAttribute('disabled', 'true');
+                if (limitBtcInput) limitBtcInput.setAttribute('disabled', 'true');
+                if (limitSlider) limitSlider.setAttribute('disabled', 'true');
+
+                if (sellLimitPriceInput) sellLimitPriceInput.setAttribute('disabled', 'true');
+                if (sellLimitPriceMinusBtn) sellLimitPriceMinusBtn.setAttribute('disabled', 'true');
+                if (sellLimitPricePlusBtn) sellLimitPricePlusBtn.setAttribute('disabled', 'true');
+
+                if (sellLimitApplyBtn) sellLimitApplyBtn.setAttribute('disabled', 'true');
+                if (sellLimitCancelBtn) sellLimitCancelBtn.setAttribute('disabled', 'true');
+                if (sellLimitUsdInput) sellLimitUsdInput.setAttribute('disabled', 'true');
+                if (sellLimitBtcInput) sellLimitBtcInput.setAttribute('disabled', 'true');
+
                 if (btcPrompt) {
                     btcPrompt.style.display = 'block';
                     btcPrompt.textContent = '🔒 Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.';
@@ -2095,9 +2326,9 @@
             const stopFinetuneBtn = document.getElementById('stop-finetune-btn');
             const finetuneEpochsInput = document.getElementById('finetune-epochs');
             const finetunePrompt = document.getElementById('finetune-admin-prompt');
-            
+
             const isEmailAdmin = (userEmail === 'yarovision@gmail.com');
-            
+
             if (isLoggedIn && isEmailAdmin) {
                 if (startFinetuneBtn) startFinetuneBtn.removeAttribute('disabled');
                 if (stopFinetuneBtn) stopFinetuneBtn.removeAttribute('disabled');
@@ -2107,7 +2338,7 @@
                 if (startFinetuneBtn) startFinetuneBtn.setAttribute('disabled', 'true');
                 if (stopFinetuneBtn) stopFinetuneBtn.setAttribute('disabled', 'true');
                 if (finetuneEpochsInput) finetuneEpochsInput.setAttribute('disabled', 'true');
-                
+
                 if (finetunePrompt) {
                     finetunePrompt.style.display = 'block';
                     if (!isLoggedIn) {
@@ -2123,23 +2354,28 @@
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             const errorMsg = document.getElementById('auth-error-msg');
-            
+
             if (!email || !password) {
                 errorMsg.style.display = 'block';
                 errorMsg.textContent = 'Будь ласка, заповніть усі поля';
                 return;
             }
-            
+
             errorMsg.style.display = 'none';
             showLoading(true);
-            
+
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
                 });
-                
+
                 const data = await response.json();
                 if (response.ok) {
                     document.getElementById('auth-email').value = '';
@@ -2162,23 +2398,28 @@
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             const errorMsg = document.getElementById('auth-error-msg');
-            
+
             if (!email || !password) {
                 errorMsg.style.display = 'block';
                 errorMsg.textContent = 'Будь ласка, заповніть усі поля';
                 return;
             }
-            
+
             errorMsg.style.display = 'none';
             showLoading(true);
-            
+
             try {
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
                 });
-                
+
                 const data = await response.json();
                 if (response.ok) {
                     showStatus('success', data.message || 'Реєстрація успішна! Тепер ви можете увійти.');
@@ -2197,7 +2438,9 @@
         async function handleLogout() {
             showLoading(true);
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await fetch('/api/auth/logout', {
+                    method: 'POST'
+                });
                 await checkAuthStatus();
                 showStatus('info', 'Ви вийшли з акаунта');
             } catch (e) {
@@ -2213,7 +2456,7 @@
             const usdEl = document.getElementById('wallet-usd-balance');
             const btcEl = document.getElementById('wallet-btc-balance');
             const priceEl = document.getElementById('exchange-btc-price');
-            
+
             if (usdEl) usdEl.textContent = `$${walletUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             if (btcEl) btcEl.textContent = walletBtc.toFixed(8);
             if (priceEl) {
@@ -2287,7 +2530,9 @@
             try {
                 const response = await fetch('/api/exchange/trade', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         type: exchangeMode,
                         amount: amount,
@@ -2308,7 +2553,7 @@
                     } else {
                         activePosition = null;
                     }
-                    
+
                     updateExchangeUI();
                     amountInput.value = '';
                     document.getElementById('trade-equivalent-usd').textContent = '$0.00';
@@ -2378,12 +2623,22 @@
             if (confirm('Ви впевнені, що хочете скинути баланс гаманця та видалити всі активні операції?')) {
                 showLoading(true);
                 try {
-                    const response = await fetch('/api/exchange/reset', { method: 'POST' });
+                    const response = await fetch('/api/exchange/reset', {
+                        method: 'POST'
+                    });
                     const data = await response.json();
                     if (response.ok) {
                         walletUsd = 100.00;
                         walletBtc = 0.00000000;
                         activePosition = null;
+                        isLimitOrderActive = false;
+                        activeLimitOrder = null;
+                        renderLimitOrderState();
+
+                        isSellLimitOrderActive = false;
+                        activeSellLimitOrder = null;
+                        renderSellLimitOrderState();
+
                         updateExchangeUI();
                         showStatus('info', data.message || 'Баланс успішно скинуто!');
                     } else {
@@ -2397,6 +2652,840 @@
             }
         }
 
+        // Setup limit order event listeners
+        function setupLimitOrderListeners() {
+            const usdInput = document.getElementById('limit-usd-amount');
+            const btcInput = document.getElementById('limit-btc-amount');
+            const priceInput = document.getElementById('limit-price-input');
+
+            if (usdInput) {
+                usdInput.addEventListener('input', function() {
+                    lastActiveLimitInput = 'usd';
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) clean = parts[0] + '.' + parts[1].substring(0, 2);
+                    this.value = clean;
+                    calculateLimitValues();
+                });
+            }
+
+            if (btcInput) {
+                btcInput.addEventListener('input', function() {
+                    lastActiveLimitInput = 'btc';
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 8) clean = parts[0] + '.' + parts[1].substring(0, 8);
+                    this.value = clean;
+                    calculateLimitValues();
+                });
+            }
+
+            if (priceInput) {
+                priceInput.addEventListener('input', function() {
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) clean = parts[0] + '.' + parts[1].substring(0, 2);
+                    this.value = clean;
+                    calculateLimitValues();
+                });
+            }
+        }
+
+        // Initialize limit price input with a value slightly below current BTC price
+        function initLimitOrderSlider(price) {
+            const priceInput = document.getElementById('limit-price-input');
+            if (!priceInput || priceInput.dataset.initialized === 'true') return;
+            priceInput.value = Math.round(price * 0.98).toFixed(2);
+            priceInput.dataset.initialized = 'true';
+            calculateLimitValues();
+        }
+
+        // Adjust the limit price by a given step (used by ± buttons)
+        function adjustLimitPrice(step) {
+            const priceInput = document.getElementById('limit-price-input');
+            if (!priceInput) return;
+            let current = parseFloat(priceInput.value) || 0;
+            current = Math.max(1, current + step);
+            priceInput.value = current.toFixed(2);
+            calculateLimitValues();
+        }
+
+        // Synchronize fields: USD amount, BTC quantity and target BTC price
+        function calculateLimitValues() {
+            const usdInput = document.getElementById('limit-usd-amount');
+            const btcInput = document.getElementById('limit-btc-amount');
+            const priceInput = document.getElementById('limit-price-input');
+            if (!usdInput || !btcInput || !priceInput) return;
+
+            const price = parseFloat(priceInput.value);
+            if (isNaN(price) || price <= 0) return;
+
+            if (lastActiveLimitInput === 'btc') {
+                const btcVal = parseFloat(btcInput.value);
+                if (isNaN(btcVal) || btcVal <= 0) {
+                    usdInput.value = '';
+                    return;
+                }
+                const usdVal = btcVal * price;
+                usdInput.value = usdVal.toFixed(2);
+            } else {
+                const usdVal = parseFloat(usdInput.value);
+                if (isNaN(usdVal) || usdVal <= 0) {
+                    btcInput.value = '';
+                    return;
+                }
+                const btcVal = usdVal / price;
+                btcInput.value = btcVal.toFixed(8);
+            }
+        }
+
+        // Setup sell limit order event listeners
+        function setupSellLimitOrderListeners() {
+            const usdInput = document.getElementById('sell-limit-usd-amount');
+            const btcInput = document.getElementById('sell-limit-btc-amount');
+            const priceInput = document.getElementById('sell-limit-price-input');
+
+            if (usdInput) {
+                usdInput.addEventListener('input', function() {
+                    lastActiveSellLimitInput = 'usd';
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) clean = parts[0] + '.' + parts[1].substring(0, 2);
+                    this.value = clean;
+                    calculateSellLimitValues();
+                });
+            }
+
+            if (btcInput) {
+                btcInput.addEventListener('input', function() {
+                    lastActiveSellLimitInput = 'btc';
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 8) clean = parts[0] + '.' + parts[1].substring(0, 8);
+                    this.value = clean;
+                    calculateSellLimitValues();
+                });
+            }
+
+            if (priceInput) {
+                priceInput.addEventListener('input', function() {
+                    let clean = this.value.replace(/[^0-9.]/g, '');
+                    const parts = clean.split('.');
+                    if (parts.length > 2) clean = parts[0] + '.' + parts.slice(1).join('');
+                    if (parts[1] && parts[1].length > 2) clean = parts[0] + '.' + parts[1].substring(0, 2);
+                    this.value = clean;
+                    calculateSellLimitValues();
+                });
+            }
+        }
+
+        // Initialize sell limit price input with a value slightly above current BTC price
+        function initSellLimitOrderSlider(price) {
+            const priceInput = document.getElementById('sell-limit-price-input');
+            if (!priceInput || priceInput.dataset.initialized === 'true') return;
+            priceInput.value = Math.round(price * 1.02).toFixed(2);
+            priceInput.dataset.initialized = 'true';
+            calculateSellLimitValues();
+        }
+
+        // Adjust the sell limit price by a given step (used by ± buttons)
+        function adjustSellLimitPrice(step) {
+            const priceInput = document.getElementById('sell-limit-price-input');
+            if (!priceInput) return;
+            let current = parseFloat(priceInput.value) || 0;
+            current = Math.max(1, current + step);
+            priceInput.value = current.toFixed(2);
+            calculateSellLimitValues();
+        }
+
+        // Synchronize fields: USD amount, BTC quantity and target BTC price
+        function calculateSellLimitValues() {
+            const usdInput = document.getElementById('sell-limit-usd-amount');
+            const btcInput = document.getElementById('sell-limit-btc-amount');
+            const priceInput = document.getElementById('sell-limit-price-input');
+            if (!usdInput || !btcInput || !priceInput) return;
+
+            const price = parseFloat(priceInput.value);
+            if (isNaN(price) || price <= 0) return;
+
+            if (lastActiveSellLimitInput === 'btc') {
+                const btcVal = parseFloat(btcInput.value);
+                if (isNaN(btcVal) || btcVal <= 0) {
+                    usdInput.value = '';
+                    return;
+                }
+                const usdVal = btcVal * price;
+                usdInput.value = usdVal.toFixed(2);
+            } else {
+                const usdVal = parseFloat(usdInput.value);
+                if (isNaN(usdVal) || usdVal <= 0) {
+                    btcInput.value = '';
+                    return;
+                }
+                const btcVal = usdVal / price;
+                btcInput.value = btcVal.toFixed(8);
+            }
+        }
+
+        // Place the limit order to lock USD funds on server
+        async function applyLimitOrder() {
+            if (!isLoggedIn) {
+                alert('Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.');
+                return;
+            }
+            
+            const usdInput = document.getElementById('limit-usd-amount');
+            const btcInput = document.getElementById('limit-btc-amount');
+            const priceInput = document.getElementById('limit-price-input');
+            if (!usdInput || !btcInput || !priceInput) return;
+
+            const usdAmount = parseFloat(usdInput.value);
+            const btcAmount = parseFloat(btcInput.value);
+            const price = parseFloat(priceInput.value);
+
+            if (isNaN(usdAmount) || usdAmount <= 0 || isNaN(btcAmount) || btcAmount <= 0 || isNaN(price) || price <= 0) {
+                alert('Будь ласка, вкажіть коректні суми та ціну активації.');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('/api/exchange/limit-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usd_amount: usdAmount,
+                        btc_amount: btcAmount,
+                        price: price
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    isLimitOrderActive = true;
+                    activeLimitOrder = data.active_limit_order;
+                    
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    updateExchangeUI();
+                    
+                    renderLimitOrderState();
+                    updateButtonStates();
+                    showStatus('success', data.message || 'Limit ордер активовано!');
+                } else {
+                    alert(data.error || 'Не вдалося створити лімітний ордер');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Помилка мережі при створенні ордера');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Cancel the limit order and restore USD balance
+        async function cancelLimitOrder() {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/exchange/limit-order/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    isLimitOrderActive = false;
+                    activeLimitOrder = null;
+                    
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    updateExchangeUI();
+                    
+                    renderLimitOrderState();
+                    updateButtonStates();
+                    showStatus('info', data.message || 'Ордер скасовано.');
+                } else {
+                    alert(data.error || 'Не вдалося скасувати ордер');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Помилка мережі при скасуванні ордера');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Render disabled or active input state depending on order active status
+        function renderLimitOrderState() {
+            const usdInput = document.getElementById('limit-usd-amount');
+            const btcInput = document.getElementById('limit-btc-amount');
+            const priceInput = document.getElementById('limit-price-input');
+            const priceMinusBtn = document.getElementById('limit-price-minus-btn');
+            const pricePlusBtn = document.getElementById('limit-price-plus-btn');
+            const applyBtn = document.getElementById('limit-apply-btn');
+            const cancelBtn = document.getElementById('limit-cancel-btn');
+            const lockedBanner = document.getElementById('limit-order-locked-banner');
+            const lockedDisplay = document.getElementById('locked-usd-display');
+
+            if (isLimitOrderActive && activeLimitOrder) {
+                if (usdInput) {
+                    usdInput.value = activeLimitOrder.usd_amount.toFixed(2);
+                    usdInput.setAttribute('disabled', 'true');
+                }
+                if (btcInput) {
+                    btcInput.value = activeLimitOrder.btc_amount.toFixed(8);
+                    btcInput.setAttribute('disabled', 'true');
+                }
+                if (priceInput) {
+                    priceInput.value = parseFloat(activeLimitOrder.price).toFixed(2);
+                    priceInput.setAttribute('disabled', 'true');
+                }
+                if (priceMinusBtn) priceMinusBtn.setAttribute('disabled', 'true');
+                if (pricePlusBtn) pricePlusBtn.setAttribute('disabled', 'true');
+                if (applyBtn) applyBtn.setAttribute('disabled', 'true');
+                if (cancelBtn) cancelBtn.removeAttribute('disabled');
+
+                if (lockedBanner && lockedDisplay) {
+                    const totalCost = activeLimitOrder.usd_amount + activeLimitOrder.fee;
+                    lockedDisplay.textContent = `$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    const lockedPriceDisplay = document.getElementById('locked-price-display');
+                    if (lockedPriceDisplay) {
+                        const activationPrice = parseFloat(activeLimitOrder.price);
+                        lockedPriceDisplay.textContent = `$${activationPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    }
+                    lockedBanner.style.display = 'block';
+                }
+            } else {
+                if (usdInput && !usdInput.value && btcInput && !btcInput.value && currentBtcPrice > 0) {
+                    btcInput.value = '0.00100000';
+                    calculateLimitValues();
+                }
+                if (usdInput) usdInput.removeAttribute('disabled');
+                if (btcInput) btcInput.removeAttribute('disabled');
+                if (priceInput) priceInput.removeAttribute('disabled');
+                if (priceMinusBtn) priceMinusBtn.removeAttribute('disabled');
+                if (pricePlusBtn) pricePlusBtn.removeAttribute('disabled');
+                if (applyBtn) {
+                    if (isLoggedIn) applyBtn.removeAttribute('disabled');
+                    else applyBtn.setAttribute('disabled', 'true');
+                }
+                if (cancelBtn) cancelBtn.setAttribute('disabled', 'true');
+                if (lockedBanner) lockedBanner.style.display = 'none';
+            }
+        }
+
+        // Check if current btc price triggers the limit order execution
+        async function checkLimitOrderExecution(price) {
+            // Prevent concurrent executions (race condition guard)
+            if (isExecutingLimitOrder) return;
+            isExecutingLimitOrder = true;
+            // Immediately mark inactive so polling loop won't re-enter
+            isLimitOrderActive = false;
+
+            try {
+                const response = await fetch('/api/exchange/limit-order/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_price: price })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.triggered) {
+                    activeLimitOrder = null;
+
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    
+                    if (walletBtc > 0) {
+                        activePosition = {
+                            btcAmount: walletBtc,
+                            purchasePrice: parseFloat(data.avg_buy_price),
+                            purchaseDate: 'В утриманні (сервер)'
+                        };
+                    } else {
+                        activePosition = null;
+                    }
+
+                    updateExchangeUI();
+
+                    renderLimitOrderState();
+                    updateButtonStates();
+                    showStatus('success', data.message || 'Limit ордер успішно виконано!');
+                } else if (!response.ok) {
+                    // Server says order is not active — restore correct state
+                    isLimitOrderActive = false;
+                    activeLimitOrder = null;
+                    renderLimitOrderState();
+                } else {
+                    // Not triggered yet — restore active state
+                    isLimitOrderActive = true;
+                }
+            } catch (e) {
+                console.error("Error checking limit order execution:", e);
+                // Restore active state on network error so next tick retries
+                isLimitOrderActive = true;
+            } finally {
+                isExecutingLimitOrder = false;
+            }
+        }
+
+        // Place the sell limit order to lock BTC funds on server
+        async function applySellLimitOrder() {
+            if (!isLoggedIn) {
+                alert('Будь ласка, авторизуйтесь у «Кабінеті», щоб грати.');
+                return;
+            }
+            
+            const usdInput = document.getElementById('sell-limit-usd-amount');
+            const btcInput = document.getElementById('sell-limit-btc-amount');
+            const priceInput = document.getElementById('sell-limit-price-input');
+            if (!usdInput || !btcInput || !priceInput) return;
+
+            const usdAmount = parseFloat(usdInput.value);
+            const btcAmount = parseFloat(btcInput.value);
+            const price = parseFloat(priceInput.value);
+
+            if (isNaN(usdAmount) || usdAmount <= 0 || isNaN(btcAmount) || btcAmount <= 0 || isNaN(price) || price <= 0) {
+                alert('Будь ласка, вкажіть коректні суми та ціну активації.');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('/api/exchange/sell-limit-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usd_amount: usdAmount,
+                        btc_amount: btcAmount,
+                        price: price
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    isSellLimitOrderActive = true;
+                    activeSellLimitOrder = data.active_sell_limit_order;
+                    
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    updateExchangeUI();
+                    
+                    renderSellLimitOrderState();
+                    updateButtonStates();
+                    showStatus('success', data.message || 'Sell Limit ордер активовано!');
+                } else {
+                    alert(data.error || 'Не вдалося створити лімітний ордер');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Помилка мережі при створенні ордера');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Cancel the sell limit order and restore BTC balance
+        async function cancelSellLimitOrder() {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/exchange/sell-limit-order/cancel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    isSellLimitOrderActive = false;
+                    activeSellLimitOrder = null;
+                    
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    updateExchangeUI();
+                    
+                    renderSellLimitOrderState();
+                    updateButtonStates();
+                    showStatus('info', data.message || 'Ордер скасовано.');
+                } else {
+                    alert(data.error || 'Не вдалося скасувати ордер');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Помилка мережі при скасуванні ордера');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Render disabled or active input state depending on sell limit order active status
+        function renderSellLimitOrderState() {
+            const usdInput = document.getElementById('sell-limit-usd-amount');
+            const btcInput = document.getElementById('sell-limit-btc-amount');
+            const priceInput = document.getElementById('sell-limit-price-input');
+            const priceMinusBtn = document.getElementById('sell-limit-price-minus-btn');
+            const pricePlusBtn = document.getElementById('sell-limit-price-plus-btn');
+            const applyBtn = document.getElementById('sell-limit-apply-btn');
+            const cancelBtn = document.getElementById('sell-limit-cancel-btn');
+            const lockedBanner = document.getElementById('sell-limit-order-locked-banner');
+            const lockedDisplay = document.getElementById('locked-btc-display');
+
+            if (isSellLimitOrderActive && activeSellLimitOrder) {
+                if (usdInput) {
+                    usdInput.value = activeSellLimitOrder.usd_amount.toFixed(2);
+                    usdInput.setAttribute('disabled', 'true');
+                }
+                if (btcInput) {
+                    btcInput.value = activeSellLimitOrder.btc_amount.toFixed(8);
+                    btcInput.setAttribute('disabled', 'true');
+                }
+                if (priceInput) {
+                    priceInput.value = parseFloat(activeSellLimitOrder.price).toFixed(2);
+                    priceInput.setAttribute('disabled', 'true');
+                }
+                if (priceMinusBtn) priceMinusBtn.setAttribute('disabled', 'true');
+                if (pricePlusBtn) pricePlusBtn.setAttribute('disabled', 'true');
+                if (applyBtn) applyBtn.setAttribute('disabled', 'true');
+                if (cancelBtn) cancelBtn.removeAttribute('disabled');
+
+                if (lockedBanner && lockedDisplay) {
+                    lockedDisplay.textContent = `${activeSellLimitOrder.btc_amount.toFixed(8)} BTC`;
+                    const lockedPriceDisplay = document.getElementById('locked-sell-price-display');
+                    if (lockedPriceDisplay) {
+                        const activationPrice = parseFloat(activeSellLimitOrder.price);
+                        lockedPriceDisplay.textContent = `$${activationPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    }
+                    lockedBanner.style.display = 'block';
+                }
+            } else {
+                if (usdInput && !usdInput.value && btcInput && !btcInput.value && currentBtcPrice > 0) {
+                    btcInput.value = '0.00100000';
+                    calculateSellLimitValues();
+                }
+                if (usdInput) usdInput.removeAttribute('disabled');
+                if (btcInput) btcInput.removeAttribute('disabled');
+                if (priceInput) priceInput.removeAttribute('disabled');
+                if (priceMinusBtn) priceMinusBtn.removeAttribute('disabled');
+                if (pricePlusBtn) pricePlusBtn.removeAttribute('disabled');
+                if (applyBtn) {
+                    if (isLoggedIn) applyBtn.removeAttribute('disabled');
+                    else applyBtn.setAttribute('disabled', 'true');
+                }
+                if (cancelBtn) cancelBtn.setAttribute('disabled', 'true');
+                if (lockedBanner) lockedBanner.style.display = 'none';
+            }
+        }
+
+        // Check if current btc price triggers the sell limit order execution
+        async function checkSellLimitOrderExecution(price) {
+            if (isExecutingSellLimitOrder) return;
+            isExecutingSellLimitOrder = true;
+            isSellLimitOrderActive = false;
+
+            try {
+                const response = await fetch('/api/exchange/sell-limit-order/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_price: price })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.triggered) {
+                    activeSellLimitOrder = null;
+
+                    walletUsd = parseFloat(data.usd_balance);
+                    walletBtc = parseFloat(data.btc_balance);
+                    
+                    activePosition = null;
+
+                    updateExchangeUI();
+
+                    renderSellLimitOrderState();
+                    updateButtonStates();
+                    showStatus('success', data.message || 'Sell Limit ордер успішно виконано!');
+                } else if (!response.ok) {
+                    isSellLimitOrderActive = false;
+                    activeSellLimitOrder = null;
+                    renderSellLimitOrderState();
+                } else {
+                    isSellLimitOrderActive = true;
+                }
+            } catch (e) {
+                console.error("Error checking sell limit order execution:", e);
+                isSellLimitOrderActive = true;
+            } finally {
+                isExecutingSellLimitOrder = false;
+            }
+        }
+
+        // Update the Today UI rate info dynamically
+        function updateTodayUIPriceStats() {
+            if (todayOpenPrice === null || todayCurrentPrice === null) return;
+
+            // Format time string
+            const now = new Date();
+            const timeString = now.toLocaleTimeString(); // Local current time
+
+            // Format numbers
+            const openText = `$${todayOpenPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const highText = `$${todayHighPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const lowText = `$${todayLowPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const currentPriceText = `$${todayCurrentPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Calculate change
+            const changeUsd = todayCurrentPrice - todayOpenPrice;
+            const changePct = (changeUsd / todayOpenPrice) * 100;
+            const changeSign = changeUsd >= 0 ? '+' : '';
+
+            // Color coding for change
+            const changeEl = document.getElementById('today-change-text');
+            if (changeEl) {
+                changeEl.textContent = `${changeSign}$${changeUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${changeSign}${changePct.toFixed(2)}%)`;
+                if (changeUsd >= 0) {
+                    changeEl.style.color = '#4caf50'; // Green
+                } else {
+                    changeEl.style.color = '#f44336'; // Red
+                }
+            }
+
+            // Calculate potential win
+            const winUsd = todayHighPrice - todayLowPrice;
+            const winBtc = todayLowPrice > 0 ? (winUsd / todayLowPrice) : 0;
+
+            // Update fields
+            const openEl = document.getElementById('today-open-text');
+            if (openEl) openEl.textContent = openText;
+
+            const highEl = document.getElementById('today-high-text');
+            if (highEl) highEl.textContent = highText;
+
+            const lowEl = document.getElementById('today-low-text');
+            if (lowEl) lowEl.textContent = lowText;
+
+            const currentPriceEl = document.getElementById('today-current-price-text');
+            if (currentPriceEl) currentPriceEl.textContent = currentPriceText;
+
+            const currentTimeEl = document.getElementById('today-current-time-text');
+            if (currentTimeEl) currentTimeEl.textContent = timeString;
+
+            const winUsdEl = document.getElementById('today-win-usd');
+            if (winUsdEl) winUsdEl.textContent = `$${winUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            const winBtcEl = document.getElementById('today-win-btc');
+            if (winBtcEl) winBtcEl.textContent = `${winBtc.toFixed(8)} BTC`;
+        }
+
+        // Fetch and load hourly chart for today
+        async function loadTodayChart(todayDateStr) {
+            try {
+                // Parse date string manually to avoid timezone shifts
+                const parts = todayDateStr.split('-');
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // 0-indexed month
+                const day = parseInt(parts[2]);
+
+                const startTime = Date.UTC(year, month, day, 0, 0, 0, 0);
+                const endTime = Date.UTC(year, month, day, 23, 59, 59, 999);
+
+                const response = await axios.get(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=${startTime}&endTime=${endTime}`);
+                const klines = response.data;
+
+                if (!klines || klines.length === 0) {
+                    document.getElementById('today-chart').style.display = 'none';
+                    return;
+                }
+
+                const times = [];
+                const prices = [];
+                const highs = [];
+                const lows = [];
+                const opens = [];
+                const closes = [];
+
+                klines.forEach(k => {
+                    const time = new Date(k[0]);
+                    const hour = String(time.getUTCHours()).padStart(2, '0') + ':00';
+                    times.push(hour);
+                    prices.push(parseFloat(k[1])); // Hourly open price
+                    opens.push(parseFloat(k[1]));
+                    highs.push(parseFloat(k[2]));
+                    lows.push(parseFloat(k[3]));
+                    closes.push(parseFloat(k[4]));
+                });
+
+                // Add the final close price (or the latest price if today is not finished)
+                const lastK = klines[klines.length - 1];
+                const lastKTime = new Date(lastK[0]);
+                const nextHour = String(lastKTime.getUTCHours() + 1).padStart(2, '0') + ':00';
+                times.push(nextHour);
+                prices.push(parseFloat(lastK[4]));
+                opens.push(parseFloat(lastK[1]));
+                highs.push(parseFloat(lastK[2]));
+                lows.push(parseFloat(lastK[3]));
+                closes.push(parseFloat(lastK[4]));
+
+                const firstPrice = prices[0]; // opening price of the day (00:00)
+                const lastPrice = prices[prices.length - 1]; // current price or daily close
+                const isPositive = lastPrice >= firstPrice;
+                const lineColor = isPositive ? '#4caf50' : '#f44336';
+                const fillColor = isPositive ? 'rgba(76, 175, 80, 0.08)' : 'rgba(244, 67, 54, 0.08)';
+
+                const hoverTexts = times.map((t, idx) => {
+                    const o = opens[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const h = highs[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const l = lows[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const c = closes[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    return `<b>Час (UTC):</b> ${t}<br><b>Відкриття:</b> $${o}<br><b>Максимум:</b> $${h}<br><b>Мінімум:</b> $${l}<br><b>Закриття/Поточна:</b> $${c}`;
+                });
+
+                const trace = {
+                    x: times,
+                    y: prices,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: lineColor,
+                        width: 2
+                    },
+                    fill: 'tozeroy',
+                    fillcolor: fillColor,
+                    hoverinfo: 'text',
+                    text: hoverTexts
+                };
+
+                // Find absolute daily high and low across all hourly candles
+                const maxPrice = Math.max(...highs);
+                const minPrice = Math.min(...lows);
+                const maxIndex = highs.indexOf(maxPrice);
+                const minIndex = lows.indexOf(minPrice);
+
+                // Update our dynamic global todayHighPrice and todayLowPrice to be at least the values from the hourly chart
+                if (maxPrice > todayHighPrice) todayHighPrice = maxPrice;
+                if (minPrice < todayLowPrice) todayLowPrice = minPrice;
+                updateTodayUIPriceStats();
+
+                // Calculate Y-axis range with a 15% gap at the top and bottom
+                const priceDiff = maxPrice - minPrice;
+                let yMin, yMax;
+                if (priceDiff > 0) {
+                    const totalHeight = priceDiff / 0.7; // 100% - 15% top - 15% bottom = 70%
+                    const pad = totalHeight * 0.15;
+                    yMin = minPrice - pad;
+                    yMax = maxPrice + pad;
+                } else {
+                    yMin = minPrice * 0.85;
+                    yMax = maxPrice * 1.15;
+                }
+
+                // Max price trace (Red dot)
+                const maxTrace = {
+                    x: [times[maxIndex]],
+                    y: [maxPrice],
+                    mode: 'markers+text',
+                    marker: {
+                        color: '#f44336',
+                        size: 9,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    text: [`$${maxPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}`],
+                    textposition: 'top center',
+                    textfont: {
+                        color: 'var(--coffee-dark)',
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    hoverinfo: 'none',
+                    showlegend: false
+                };
+
+                // Min price trace (Blue dot)
+                const minTrace = {
+                    x: [times[minIndex]],
+                    y: [minPrice],
+                    mode: 'markers+text',
+                    marker: {
+                        color: '#007bff',
+                        size: 9,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    text: [`$${minPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}`],
+                    textposition: 'bottom center',
+                    textfont: {
+                        color: 'var(--coffee-dark)',
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    hoverinfo: 'none',
+                    showlegend: false
+                };
+
+                const layout = {
+                    margin: {
+                        t: 25,
+                        b: 30,
+                        l: 55,
+                        r: 15
+                    },
+                    height: 200,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    xaxis: {
+                        gridcolor: 'rgba(218, 192, 163, 0.15)',
+                        tickcolor: 'var(--coffee-dark)',
+                        tickfont: {
+                            color: 'var(--coffee-dark)',
+                            size: 9
+                        },
+                        nticks: 12
+                    },
+                    yaxis: {
+                        gridcolor: 'rgba(218, 192, 163, 0.15)',
+                        tickcolor: 'var(--coffee-dark)',
+                        tickfont: {
+                            color: 'var(--coffee-dark)',
+                            size: 9
+                        },
+                        tickformat: '$,.0f',
+                        range: [yMin, yMax]
+                    },
+                    showlegend: false
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: false
+                };
+
+                document.getElementById('today-chart').style.display = 'block';
+                Plotly.newPlot('today-chart', [trace, maxTrace, minTrace], layout, config);
+                lastTodayChartFetchTime = Date.now();
+            } catch (error) {
+                console.error('❌ Failed to load today\'s chart:', error);
+            }
+        }
+
         // Fetch Bitcoin price in real time from Binance API
         async function fetchBtcRealTimePrice() {
             try {
@@ -2405,6 +3494,32 @@
                     currentBtcPrice = parseFloat(response.data.price);
                     updateExchangeUI();
                     updateEquivalent();
+
+                    if (currentBtcPrice > 0) {
+                        initLimitOrderSlider(currentBtcPrice);
+                        initSellLimitOrderSlider(currentBtcPrice);
+                    }
+
+                    if (isLimitOrderActive) {
+                        checkLimitOrderExecution(currentBtcPrice);
+                    }
+
+                    if (isSellLimitOrderActive) {
+                        checkSellLimitOrderExecution(currentBtcPrice);
+                    }
+
+                    // Update Today Price stats dynamically!
+                    if (todayOpenPrice !== null) {
+                        todayCurrentPrice = currentBtcPrice;
+                        if (currentBtcPrice > todayHighPrice) todayHighPrice = currentBtcPrice;
+                        if (currentBtcPrice < todayLowPrice) todayLowPrice = currentBtcPrice;
+                        updateTodayUIPriceStats();
+                    }
+
+                    // Periodically refresh the today's chart (every 30 seconds)
+                    if (todayDateStr && (Date.now() - lastTodayChartFetchTime > 30000)) {
+                        loadTodayChart(todayDateStr);
+                    }
                 }
             } catch (error) {
                 console.warn('❌ Failed to fetch Binance price ticker, falling back to local data:', error);
@@ -2416,6 +3531,24 @@
                         currentBtcPrice = priceVal;
                         updateExchangeUI();
                         updateEquivalent();
+
+                        if (currentBtcPrice > 0) {
+                            initLimitOrderSlider(currentBtcPrice);
+                            initSellLimitOrderSlider(currentBtcPrice);
+                        }
+
+                        if (isLimitOrderActive) {
+                            checkLimitOrderExecution(currentBtcPrice);
+                        }
+
+                        if (isSellLimitOrderActive) {
+                            checkSellLimitOrderExecution(currentBtcPrice);
+                        }
+
+                        if (todayOpenPrice !== null) {
+                            todayCurrentPrice = currentBtcPrice;
+                            updateTodayUIPriceStats();
+                        }
                     }
                 }
             }
@@ -2423,6 +3556,7 @@
 
         // Start Price Polling Interval
         let btcPriceInterval = null;
+
         function startBtcPricePolling() {
             fetchBtcRealTimePrice();
             if (btcPriceInterval) clearInterval(btcPriceInterval);
@@ -2431,28 +3565,33 @@
 
         // UTC Countdown Timer for end of operational day
         let utcCountdownInterval = null;
+
         function updateUtcCountdown() {
             const now = new Date();
             const nowUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
             const tomorrowUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0);
-            
+
             const diff = tomorrowUtc - nowUtc;
-            
+
+            // Periodically tick the "Актуальний час" clock every second
+            updateTodayUIPriceStats();
+
             const el = document.getElementById('time-to-close-text');
             if (!el) return;
-            
+
             if (diff <= 0) {
                 el.textContent = '00:00:00';
                 return;
             }
-            
+
             const hours = Math.floor(diff / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            
+
             const format = (num) => String(num).padStart(2, '0');
             el.textContent = `${format(hours)}:${format(minutes)}:${format(seconds)}`;
         }
+
         function startUtcCountdown() {
             updateUtcCountdown();
             if (utcCountdownInterval) clearInterval(utcCountdownInterval);
@@ -2467,38 +3606,70 @@
                 const year = parseInt(parts[0]);
                 const month = parseInt(parts[1]) - 1; // 0-indexed month
                 const day = parseInt(parts[2]);
-                
+
                 const startTime = Date.UTC(year, month, day, 0, 0, 0, 0);
                 const endTime = Date.UTC(year, month, day, 23, 59, 59, 999);
-                
+
                 const response = await axios.get(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=${startTime}&endTime=${endTime}`);
                 const klines = response.data;
-                
+
                 if (!klines || klines.length === 0) {
                     document.getElementById('yesterday-chart').style.display = 'none';
                     return;
                 }
-                
+
                 const times = [];
                 const prices = [];
                 const highs = [];
                 const lows = [];
-                
+                const opens = [];
+                const closes = [];
+
                 klines.forEach(k => {
                     const time = new Date(k[0]);
                     const hour = String(time.getUTCHours()).padStart(2, '0') + ':00';
                     times.push(hour);
-                    prices.push(parseFloat(k[4])); // Hourly close price
-                    highs.push(parseFloat(k[2]));  // Hourly absolute high
-                    lows.push(parseFloat(k[3]));   // Hourly absolute low
+                    prices.push(parseFloat(k[1])); // Hourly open price (to start the day with open price)
+                    opens.push(parseFloat(k[1]));
+                    highs.push(parseFloat(k[2])); // Hourly absolute high
+                    lows.push(parseFloat(k[3])); // Hourly absolute low
+                    closes.push(parseFloat(k[4]));
                 });
-                
-                const firstPrice = prices[0];
-                const lastPrice = prices[prices.length - 1];
+
+                // Add the final close price of the day at 24:00
+                times.push('24:00');
+                prices.push(parseFloat(klines[klines.length - 1][4])); // Daily close price (close of last hour)
+                opens.push(parseFloat(klines[klines.length - 1][1]));
+                highs.push(parseFloat(klines[klines.length - 1][2]));
+                lows.push(parseFloat(klines[klines.length - 1][3]));
+                closes.push(parseFloat(klines[klines.length - 1][4]));
+
+                const firstPrice = prices[0]; // opening price of the day (00:00)
+                const lastPrice = prices[prices.length - 1]; // closing price of the day (24:00)
                 const isPositive = lastPrice >= firstPrice;
                 const lineColor = isPositive ? '#4caf50' : '#f44336';
                 const fillColor = isPositive ? 'rgba(76, 175, 80, 0.08)' : 'rgba(244, 67, 54, 0.08)';
-                
+
+                const hoverTexts = times.map((t, idx) => {
+                    const o = opens[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const h = highs[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const l = lows[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    const c = closes[idx].toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    return `<b>Час (UTC):</b> ${t}<br><b>Відкриття:</b> $${o}<br><b>Максимум:</b> $${h}<br><b>Мінімум:</b> $${l}<br><b>Закриття:</b> $${c}`;
+                });
+
                 const trace = {
                     x: times,
                     y: prices,
@@ -2510,7 +3681,8 @@
                     },
                     fill: 'tozeroy',
                     fillcolor: fillColor,
-                    hoverinfo: 'x+y'
+                    hoverinfo: 'text',
+                    text: hoverTexts
                 };
 
                 // Find absolute daily high and low across all hourly candles
@@ -2579,36 +3751,47 @@
                     hoverinfo: 'none',
                     showlegend: false
                 };
-                
+
                 const layout = {
-                    margin: { t: 25, b: 30, l: 55, r: 15 },
+                    margin: {
+                        t: 25,
+                        b: 30,
+                        l: 55,
+                        r: 15
+                    },
                     height: 200,
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     xaxis: {
                         gridcolor: 'rgba(218, 192, 163, 0.15)',
                         tickcolor: 'var(--coffee-dark)',
-                        tickfont: { color: 'var(--coffee-dark)', size: 9 },
+                        tickfont: {
+                            color: 'var(--coffee-dark)',
+                            size: 9
+                        },
                         nticks: 12
                     },
                     yaxis: {
                         gridcolor: 'rgba(218, 192, 163, 0.15)',
                         tickcolor: 'var(--coffee-dark)',
-                        tickfont: { color: 'var(--coffee-dark)', size: 9 },
+                        tickfont: {
+                            color: 'var(--coffee-dark)',
+                            size: 9
+                        },
                         tickformat: '$,.0f',
                         range: [yMin, yMax]
                     },
                     showlegend: false
                 };
-                
+
                 const config = {
                     responsive: true,
                     displayModeBar: false
                 };
-                
+
                 document.getElementById('yesterday-chart').style.display = 'block';
                 Plotly.newPlot('yesterday-chart', [trace, maxTrace, minTrace], layout, config);
-                
+
             } catch (error) {
                 console.error('❌ Failed to load yesterday klines chart:', error);
                 document.getElementById('yesterday-chart').style.display = 'none';

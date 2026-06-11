@@ -574,6 +574,8 @@ def auth_status():
 @login_required
 def exchange_wallet():
     user_id = session.get('user_id')
+    limit_order = session.get('limit_order')
+    sell_limit_order = session.get('sell_limit_order')
     
     # 1. Try Supabase
     if supabase:
@@ -585,7 +587,9 @@ def exchange_wallet():
                 return jsonify({
                     'usd_balance': float(wallet['usd_balance']),
                     'btc_balance': float(wallet['btc_balance']),
-                    'avg_buy_price': float(wallet['avg_buy_price'])
+                    'avg_buy_price': float(wallet['avg_buy_price']),
+                    'active_limit_order': limit_order,
+                    'active_sell_limit_order': sell_limit_order
                 }), 200
             else:
                 new_wallet = {
@@ -598,7 +602,9 @@ def exchange_wallet():
                 return jsonify({
                     'usd_balance': 100.0,
                     'btc_balance': 0.0,
-                    'avg_buy_price': 0.0
+                    'avg_buy_price': 0.0,
+                    'active_limit_order': limit_order,
+                    'active_sell_limit_order': sell_limit_order
                 }), 200
         except Exception as e:
             print(f"Error fetching wallet from Supabase: {str(e)}")
@@ -610,7 +616,10 @@ def exchange_wallet():
             'btc_balance': 0.0,
             'avg_buy_price': 0.0
         }
-    return jsonify(session['wallet']), 200
+    wallet_data = dict(session['wallet'])
+    wallet_data['active_limit_order'] = limit_order
+    wallet_data['active_sell_limit_order'] = sell_limit_order
+    return jsonify(wallet_data), 200
 
 @app.route('/api/exchange/history', methods=['GET'])
 @login_required
@@ -799,10 +808,16 @@ def exchange_reset():
             
             supabase.table('trades').delete().eq('user_id', user_id).execute()
             
+            session['limit_order'] = None
+            session['sell_limit_order'] = None
+            session.modified = True
+            
             return jsonify({
                 'usd_balance': 100.0,
                 'btc_balance': 0.0,
                 'avg_buy_price': 0.0,
+                'active_limit_order': None,
+                'active_sell_limit_order': None,
                 'message': 'Баланс успішно скинуто, історію очищено!'
             }), 200
         except Exception as e:
@@ -814,13 +829,782 @@ def exchange_reset():
         'avg_buy_price': 0.0
     }
     session['trades'] = []
+    session['limit_order'] = None
+    session['sell_limit_order'] = None
     session.modified = True
     return jsonify({
         'usd_balance': 100.0,
         'btc_balance': 0.0,
         'avg_buy_price': 0.0,
+        'active_limit_order': None,
+        'active_sell_limit_order': None,
         'message': 'Баланс успішно скинуто! (Очищено в сесії)'
     }), 200
+
+@app.route('/api/exchange/limit-order', methods=['POST'])
+@login_required
+def place_limit_order():
+    user_id = session.get('user_id')
+    data = request.json or {}
+    usd_amount = data.get('usd_amount')
+    btc_amount = data.get('btc_amount')
+    price = data.get('price')
+
+    if usd_amount is None or btc_amount is None or not price:
+        return jsonify({'error': 'Відсутні обов\'язкові дані'}), 400
+
+    try:
+        usd_amount = float(usd_amount)
+        btc_amount = float(btc_amount)
+        price = float(price)
+    except ValueError:
+        return jsonify({'error': 'Неправильний формат чисел'}), 400
+
+    if usd_amount <= 0 or btc_amount <= 0 or price <= 0:
+        return jsonify({'error': 'Всі суми мають бути більшими за нуль'}), 400
+
+    fee_rate = 0.001  # 0.1% fee
+    fee = btc_amount * price * fee_rate
+    total_cost = usd_amount + fee
+
+    # 1. Update wallet balance
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            wallets_data = getattr(res, 'data', [])
+            if not wallets_data:
+                return jsonify({'error': 'Гаманець не знайдено'}), 404
+            
+            wallet = wallets_data[0]
+            usd_balance = float(wallet['usd_balance'])
+            
+            if usd_balance < total_cost:
+                return jsonify({'error': f'Недостатньо USD для лімітного ордера (потрібно ${total_cost:.2f}, доступно ${usd_balance:.2f})'}), 400
+                
+            new_usd_balance = usd_balance - total_cost
+            
+            supabase.table('wallets').update({
+                'usd_balance': new_usd_balance,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            # Save to session — mark that Supabase USD was already deducted
+            session['limit_order'] = {
+                'active': True,
+                'usd_amount': usd_amount,
+                'btc_amount': btc_amount,
+                'price': price,
+                'fee': fee,
+                'total_cost': total_cost,
+                'supabase_deducted': True
+            }
+            # Keep session wallet synced
+            if 'wallet' not in session:
+                session['wallet'] = {
+                    'usd_balance': new_usd_balance,
+                    'btc_balance': float(wallet['btc_balance']),
+                    'avg_buy_price': float(wallet['avg_buy_price'])
+                }
+            else:
+                session['wallet']['usd_balance'] = new_usd_balance
+            session.modified = True
+            
+            return jsonify({
+                'usd_balance': new_usd_balance,
+                'btc_balance': float(wallet['btc_balance']),
+                'avg_buy_price': float(wallet['avg_buy_price']),
+                'active_limit_order': session['limit_order'],
+                'message': 'Buy Limit ордер розміщено успішно!'
+            }), 200
+            
+        except Exception as e:
+            print(f"Supabase limit-order placement failed, falling back to session: {str(e)}")
+
+    # 2. Fallback to Session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    
+    wallet = session['wallet']
+    usd_balance = float(wallet['usd_balance'])
+    
+    if usd_balance < total_cost:
+        return jsonify({'error': f'Недостатньо USD для лімітного ордера (потрібно ${total_cost:.2f}, доступно ${usd_balance:.2f})'}), 400
+        
+    new_usd_balance = usd_balance - total_cost
+    wallet['usd_balance'] = new_usd_balance
+    
+    session['limit_order'] = {
+        'active': True,
+        'usd_amount': usd_amount,
+        'btc_amount': btc_amount,
+        'price': price,
+        'fee': fee,
+        'total_cost': total_cost,
+        'supabase_deducted': False  # Supabase was NOT updated — only session wallet
+    }
+    session.modified = True
+    
+    return jsonify({
+        'usd_balance': new_usd_balance,
+        'btc_balance': float(wallet['btc_balance']),
+        'avg_buy_price': float(wallet['avg_buy_price']),
+        'active_limit_order': session['limit_order'],
+        'message': 'Buy Limit ордер розміщено успішно! (Збережено в сесії)'
+    }), 200
+
+@app.route('/api/exchange/limit-order/cancel', methods=['POST'])
+@login_required
+def cancel_limit_order():
+    user_id = session.get('user_id')
+    limit_order = session.get('limit_order')
+    
+    if not limit_order or not limit_order.get('active'):
+        return jsonify({'error': 'Немає активних лімітних ордерів'}), 400
+        
+    total_cost = limit_order['total_cost']
+    
+    # 1. Update via Supabase
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            wallets_data = getattr(res, 'data', [])
+            if not wallets_data:
+                return jsonify({'error': 'Гаманець не знайдено'}), 404
+            
+            wallet = wallets_data[0]
+            usd_balance = float(wallet['usd_balance'])
+            new_usd_balance = usd_balance + total_cost
+            
+            supabase.table('wallets').update({
+                'usd_balance': new_usd_balance,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            session['limit_order'] = None
+            session.modified = True
+            
+            return jsonify({
+                'usd_balance': new_usd_balance,
+                'btc_balance': float(wallet['btc_balance']),
+                'avg_buy_price': float(wallet['avg_buy_price']),
+                'active_limit_order': None,
+                'message': 'Buy Limit ордер скасовано, кошти повернуто!'
+            }), 200
+            
+        except Exception as e:
+            print(f"Supabase limit-order cancel failed, falling back to session: {str(e)}")
+
+    # 2. Fallback to Session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    
+    wallet = session['wallet']
+    usd_balance = float(wallet['usd_balance'])
+    new_usd_balance = usd_balance + total_cost
+    wallet['usd_balance'] = new_usd_balance
+    
+    session['limit_order'] = None
+    session.modified = True
+    
+    return jsonify({
+        'usd_balance': new_usd_balance,
+        'btc_balance': float(wallet['btc_balance']),
+        'avg_buy_price': float(wallet['avg_buy_price']),
+        'active_limit_order': None,
+        'message': 'Buy Limit ордер скасовано, кошти повернуто! (Оновлено в сесії)'
+    }), 200
+
+
+@app.route('/api/exchange/limit-order/check', methods=['POST'])
+@login_required
+def check_limit_order():
+    user_id = session.get('user_id')
+    limit_order = session.get('limit_order')
+
+    if not limit_order or not limit_order.get('active'):
+        return jsonify({'active': False, 'triggered': False}), 200
+
+    data = request.json or {}
+    current_price = data.get('current_price')
+
+    if not current_price:
+        return jsonify({'error': 'Не вказано поточну ціну'}), 400
+
+    try:
+        current_price = float(current_price)
+    except ValueError:
+        return jsonify({'error': 'Неправильний формат ціни'}), 400
+
+    limit_price = float(limit_order['price'])
+
+    # Check if target condition is met (market price <= limit price)
+    if current_price <= limit_price:
+        btc_amount = float(limit_order['btc_amount'])
+        usd_amount = float(limit_order['usd_amount'])
+        fee = float(limit_order['fee'])
+        total_cost = float(limit_order['total_cost'])
+
+        # ── STEP 1: Update wallet in Supabase (CRITICAL operation) ──────────────
+        wallet_updated_in_supabase = False
+        final_usd = None
+        final_btc = None
+        final_avg = None
+
+        if supabase:
+            try:
+                res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+                wallets_data = getattr(res, 'data', [])
+                if wallets_data:
+                    wallet = wallets_data[0]
+                    usd_balance = float(wallet['usd_balance'])
+                    btc_balance = float(wallet['btc_balance'])
+                    avg_buy_price = float(wallet['avg_buy_price'])
+
+                    supabase_deducted = limit_order.get('supabase_deducted', True)
+                    if not supabase_deducted:
+                        if usd_balance < total_cost:
+                            session['limit_order'] = None
+                            session.modified = True
+                            return jsonify({'error': 'Недостатньо USD для виконання ордера', 'triggered': False}), 400
+                        usd_balance -= total_cost
+
+                    new_btc_balance = btc_balance + btc_amount
+                    if new_btc_balance > 0:
+                        new_avg_buy_price = ((btc_balance * avg_buy_price) + (btc_amount * limit_price)) / new_btc_balance
+                    else:
+                        new_avg_buy_price = 0.0
+
+                    supabase.table('wallets').update({
+                        'usd_balance': usd_balance,
+                        'btc_balance': new_btc_balance,
+                        'avg_buy_price': new_avg_buy_price,
+                        'updated_at': datetime.datetime.now().isoformat()
+                    }).eq('user_id', user_id).execute()
+
+                    # Keep session wallet synced
+                    if 'wallet' not in session:
+                        session['wallet'] = {}
+                    session['wallet']['usd_balance'] = usd_balance
+                    session['wallet']['btc_balance'] = new_btc_balance
+                    session['wallet']['avg_buy_price'] = new_avg_buy_price
+
+                    wallet_updated_in_supabase = True
+                    final_usd = usd_balance
+                    final_btc = new_btc_balance
+                    final_avg = new_avg_buy_price
+
+            except Exception as e:
+                print(f"Supabase limit-order wallet update failed: {str(e)}")
+
+        # ── STEP 2: If wallet updated → return success immediately ───────────────
+        # NEVER fall through to session fallback when wallet was already updated —
+        # that would double-add BTC.
+        if wallet_updated_in_supabase:
+            # Trade log is non-critical — failure must NOT cause double-execution
+            try:
+                supabase.table('trades').insert({
+                    'user_id': user_id,
+                    'type': 'buy',
+                    'btc_amount': btc_amount,
+                    'price': limit_price,
+                    'fee': fee,
+                    'timestamp': datetime.datetime.now().isoformat()
+                }).execute()
+            except Exception as trade_err:
+                print(f"Warning: trade log insert failed (non-critical): {trade_err}")
+
+            session['limit_order'] = None
+            session.modified = True
+            return jsonify({
+                'triggered': True,
+                'usd_balance': final_usd,
+                'btc_balance': final_btc,
+                'avg_buy_price': final_avg,
+                'active_limit_order': None,
+                'message': f'Buy Limit ордер виконано! Куплено {btc_amount:.8f} BTC за ціною ${limit_price:.2f}'
+            }), 200
+
+        # ── STEP 3: Session fallback (Supabase wallet update failed) ─────────────
+        if 'wallet' not in session:
+            session['wallet'] = {'usd_balance': 100.0, 'btc_balance': 0.0, 'avg_buy_price': 0.0}
+        if 'trades' not in session:
+            session['trades'] = []
+
+        # Always read fresh Supabase balances — session wallet may be stale
+        # (e.g. btc_balance wasn't synced after a Supabase sell)
+        btc_balance = float(session['wallet']['btc_balance'])
+        usd_balance = float(session['wallet']['usd_balance'])
+        avg_buy_price = float(session['wallet']['avg_buy_price'])
+
+        if supabase:
+            try:
+                fresh_res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+                fresh_data = getattr(fresh_res, 'data', [])
+                if fresh_data:
+                    btc_balance = float(fresh_data[0]['btc_balance'])
+                    avg_buy_price = float(fresh_data[0]['avg_buy_price'])
+                    if limit_order.get('supabase_deducted', True):
+                        usd_balance = float(fresh_data[0]['usd_balance'])
+            except Exception as fresh_err:
+                print(f"Session fallback: could not read fresh Supabase balance: {fresh_err}")
+
+        # The USD balance has already been deducted at placement time. No need to subtract again.
+
+        new_btc_balance = btc_balance + btc_amount
+        if new_btc_balance > 0:
+            new_avg_buy_price = ((btc_balance * avg_buy_price) + (btc_amount * limit_price)) / new_btc_balance
+        else:
+            new_avg_buy_price = 0.0
+
+        session['wallet']['usd_balance'] = usd_balance
+        session['wallet']['btc_balance'] = new_btc_balance
+        session['wallet']['avg_buy_price'] = new_avg_buy_price
+
+        trade_log = {
+            'id': len(session['trades']) + 1,
+            'user_id': user_id,
+            'type': 'buy',
+            'btc_amount': btc_amount,
+            'price': limit_price,
+            'fee': fee,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        session['trades'].insert(0, trade_log)
+        session['limit_order'] = None
+        session.modified = True
+
+        # Sync to Supabase so fetchCloudWallet returns correct data
+        if supabase:
+            try:
+                supabase.table('wallets').update({
+                    'usd_balance': usd_balance,
+                    'btc_balance': new_btc_balance,
+                    'avg_buy_price': new_avg_buy_price,
+                    'updated_at': datetime.datetime.now().isoformat()
+                }).eq('user_id', user_id).execute()
+                try:
+                    supabase.table('trades').insert({
+                        'user_id': user_id,
+                        'type': 'buy',
+                        'btc_amount': btc_amount,
+                        'price': limit_price,
+                        'fee': fee,
+                        'timestamp': datetime.datetime.now().isoformat()
+                    }).execute()
+                except Exception:
+                    pass
+            except Exception as sync_err:
+                print(f"Session fallback: failed to sync balances to Supabase: {sync_err}")
+
+        return jsonify({
+            'triggered': True,
+            'usd_balance': usd_balance,
+            'btc_balance': new_btc_balance,
+            'avg_buy_price': new_avg_buy_price,
+            'active_limit_order': None,
+            'message': f'Buy Limit ордер виконано! Куплено {btc_amount:.8f} BTC за ціною ${limit_price:.2f}'
+        }), 200
+
+    return jsonify({'active': True, 'triggered': False}), 200
+
+
+@app.route('/api/exchange/sell-limit-order', methods=['POST'])
+@login_required
+def place_sell_limit_order():
+    user_id = session.get('user_id')
+    data = request.json or {}
+    usd_amount = data.get('usd_amount')
+    btc_amount = data.get('btc_amount')
+    price = data.get('price')
+
+    if usd_amount is None or btc_amount is None or not price:
+        return jsonify({'error': 'Відсутні обов\'язкові дані'}), 400
+
+    try:
+        usd_amount = float(usd_amount)
+        btc_amount = float(btc_amount)
+        price = float(price)
+    except ValueError:
+        return jsonify({'error': 'Неправильний формат чисел'}), 400
+
+    if usd_amount <= 0 or btc_amount <= 0 or price <= 0:
+        return jsonify({'error': 'Всі суми мають бути більшими за нуль'}), 400
+
+    fee_rate = 0.001  # 0.1% fee
+    fee = btc_amount * price * fee_rate
+    total_cost = usd_amount + fee
+
+    # 1. Update wallet balance
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            wallets_data = getattr(res, 'data', [])
+            if not wallets_data:
+                return jsonify({'error': 'Гаманець не знайдено'}), 404
+            
+            wallet = wallets_data[0]
+            btc_balance = float(wallet['btc_balance'])
+            avg_buy_price = float(wallet['avg_buy_price'])
+            
+            if btc_balance < btc_amount:
+                return jsonify({'error': f'Недостатньо BTC для лімітного ордера (потрібно {btc_amount:.8f} BTC, доступно {btc_balance:.8f} BTC)'}), 400
+                
+            new_btc_balance = btc_balance - btc_amount
+            new_avg_buy_price = avg_buy_price if new_btc_balance > 0 else 0.0
+            
+            supabase.table('wallets').update({
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            # Save to session — mark that Supabase BTC was already deducted
+            session['sell_limit_order'] = {
+                'active': True,
+                'usd_amount': usd_amount,
+                'btc_amount': btc_amount,
+                'price': price,
+                'fee': fee,
+                'total_cost': total_cost,
+                'avg_buy_price': avg_buy_price,
+                'supabase_deducted': True
+            }
+            # Keep session wallet synced
+            if 'wallet' not in session:
+                session['wallet'] = {
+                    'usd_balance': float(wallet['usd_balance']),
+                    'btc_balance': new_btc_balance,
+                    'avg_buy_price': new_avg_buy_price
+                }
+            else:
+                session['wallet']['btc_balance'] = new_btc_balance
+                session['wallet']['avg_buy_price'] = new_avg_buy_price
+            session.modified = True
+            
+            return jsonify({
+                'usd_balance': float(wallet['usd_balance']),
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'active_sell_limit_order': session['sell_limit_order'],
+                'message': 'Sell Limit ордер розміщено успішно!'
+            }), 200
+            
+        except Exception as e:
+            print(f"Supabase sell-limit-order placement failed, falling back to session: {str(e)}")
+
+    # 2. Fallback to Session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    
+    wallet = session['wallet']
+    btc_balance = float(wallet['btc_balance'])
+    avg_buy_price = float(wallet['avg_buy_price'])
+    
+    if btc_balance < btc_amount:
+        return jsonify({'error': f'Недостатньо BTC для лімітного ордера (потрібно {btc_amount:.8f} BTC, доступно {btc_balance:.8f} BTC)'}), 400
+        
+    new_btc_balance = btc_balance - btc_amount
+    new_avg_buy_price = avg_buy_price if new_btc_balance > 0 else 0.0
+    wallet['btc_balance'] = new_btc_balance
+    wallet['avg_buy_price'] = new_avg_buy_price
+    
+    session['sell_limit_order'] = {
+        'active': True,
+        'usd_amount': usd_amount,
+        'btc_amount': btc_amount,
+        'price': price,
+        'fee': fee,
+        'total_cost': total_cost,
+        'avg_buy_price': avg_buy_price,
+        'supabase_deducted': False
+    }
+    session.modified = True
+    
+    return jsonify({
+        'usd_balance': float(wallet['usd_balance']),
+        'btc_balance': new_btc_balance,
+        'avg_buy_price': new_avg_buy_price,
+        'active_sell_limit_order': session['sell_limit_order'],
+        'message': 'Sell Limit ордер розміщено успішно! (Збережено в сесії)'
+    }), 200
+
+
+@app.route('/api/exchange/sell-limit-order/cancel', methods=['POST'])
+@login_required
+def cancel_sell_limit_order():
+    user_id = session.get('user_id')
+    sell_limit_order = session.get('sell_limit_order')
+    
+    if not sell_limit_order or not sell_limit_order.get('active'):
+        return jsonify({'error': 'Немає активних лімітних ордерів'}), 400
+        
+    restored_btc = float(sell_limit_order['btc_amount'])
+    restored_avg = float(sell_limit_order['avg_buy_price'])
+    
+    # 1. Update via Supabase
+    if supabase:
+        try:
+            res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+            wallets_data = getattr(res, 'data', [])
+            if not wallets_data:
+                return jsonify({'error': 'Гаманець не знайдено'}), 404
+            
+            wallet = wallets_data[0]
+            current_btc = float(wallet['btc_balance'])
+            current_avg = float(wallet['avg_buy_price'])
+            
+            new_btc_balance = current_btc + restored_btc
+            if new_btc_balance > 0:
+                new_avg_buy_price = ((current_btc * current_avg) + (restored_btc * restored_avg)) / new_btc_balance
+            else:
+                new_avg_buy_price = 0.0
+                
+            supabase.table('wallets').update({
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'updated_at': datetime.datetime.now().isoformat()
+            }).eq('user_id', user_id).execute()
+            
+            session['sell_limit_order'] = None
+            session.modified = True
+            
+            return jsonify({
+                'usd_balance': float(wallet['usd_balance']),
+                'btc_balance': new_btc_balance,
+                'avg_buy_price': new_avg_buy_price,
+                'active_sell_limit_order': None,
+                'message': 'Sell Limit ордер скасовано, BTC повернуто!'
+            }), 200
+            
+        except Exception as e:
+            print(f"Supabase sell-limit-order cancel failed, falling back to session: {str(e)}")
+
+    # 2. Fallback to Session
+    if 'wallet' not in session:
+        session['wallet'] = {
+            'usd_balance': 100.0,
+            'btc_balance': 0.0,
+            'avg_buy_price': 0.0
+        }
+    
+    wallet = session['wallet']
+    current_btc = float(wallet['btc_balance'])
+    current_avg = float(wallet['avg_buy_price'])
+    
+    new_btc_balance = current_btc + restored_btc
+    if new_btc_balance > 0:
+        new_avg_buy_price = ((current_btc * current_avg) + (restored_btc * restored_avg)) / new_btc_balance
+    else:
+        new_avg_buy_price = 0.0
+        
+    wallet['btc_balance'] = new_btc_balance
+    wallet['avg_buy_price'] = new_avg_buy_price
+    
+    session['sell_limit_order'] = None
+    session.modified = True
+    
+    return jsonify({
+        'usd_balance': float(wallet['usd_balance']),
+        'btc_balance': new_btc_balance,
+        'avg_buy_price': new_avg_buy_price,
+        'active_sell_limit_order': None,
+        'message': 'Sell Limit ордер скасовано, BTC повернуто! (Оновлено в сесії)'
+    }), 200
+
+
+@app.route('/api/exchange/sell-limit-order/check', methods=['POST'])
+@login_required
+def check_sell_limit_order():
+    user_id = session.get('user_id')
+    sell_limit_order = session.get('sell_limit_order')
+
+    if not sell_limit_order or not sell_limit_order.get('active'):
+        return jsonify({'active': False, 'triggered': False}), 200
+
+    data = request.json or {}
+    current_price = data.get('current_price')
+
+    if not current_price:
+        return jsonify({'error': 'Не вказано поточну ціну'}), 400
+
+    try:
+        current_price = float(current_price)
+    except ValueError:
+        return jsonify({'error': 'Неправильний формат ціни'}), 400
+
+    limit_price = float(sell_limit_order['price'])
+
+    # Check if target condition is met (market price >= limit price)
+    if current_price >= limit_price:
+        btc_amount = float(sell_limit_order['btc_amount'])
+        usd_amount = float(sell_limit_order['usd_amount'])
+        fee = float(sell_limit_order['fee'])
+
+        # Proceeds is usd_amount - fee
+        proceeds = usd_amount - fee
+
+        # ── STEP 1: Update wallet in Supabase (CRITICAL operation) ──────────────
+        wallet_updated_in_supabase = False
+        final_usd = None
+        final_btc = None
+        final_avg = None
+
+        if supabase:
+            try:
+                res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+                wallets_data = getattr(res, 'data', [])
+                if wallets_data:
+                    wallet = wallets_data[0]
+                    usd_balance = float(wallet['usd_balance'])
+                    btc_balance = float(wallet['btc_balance'])
+                    avg_buy_price = float(wallet['avg_buy_price'])
+
+                    supabase_deducted = sell_limit_order.get('supabase_deducted', True)
+                    if not supabase_deducted:
+                        if btc_balance < btc_amount:
+                            session['sell_limit_order'] = None
+                            session.modified = True
+                            return jsonify({'error': 'Недостатньо BTC для виконання ордера', 'triggered': False}), 400
+                        btc_balance -= btc_amount
+                        avg_buy_price = avg_buy_price if btc_balance > 0 else 0.0
+
+                    new_usd_balance = usd_balance + proceeds
+
+                    supabase.table('wallets').update({
+                        'usd_balance': new_usd_balance,
+                        'btc_balance': btc_balance,
+                        'avg_buy_price': avg_buy_price,
+                        'updated_at': datetime.datetime.now().isoformat()
+                    }).eq('user_id', user_id).execute()
+
+                    # Keep session wallet synced
+                    if 'wallet' not in session:
+                        session['wallet'] = {}
+                    session['wallet']['usd_balance'] = new_usd_balance
+                    session['wallet']['btc_balance'] = btc_balance
+                    session['wallet']['avg_buy_price'] = avg_buy_price
+
+                    wallet_updated_in_supabase = True
+                    final_usd = new_usd_balance
+                    final_btc = btc_balance
+                    final_avg = avg_buy_price
+
+            except Exception as e:
+                print(f"Supabase sell-limit-order wallet update failed: {str(e)}")
+
+        # ── STEP 2: If wallet updated → return success immediately ───────────────
+        if wallet_updated_in_supabase:
+            try:
+                supabase.table('trades').insert({
+                    'user_id': user_id,
+                    'type': 'sell',
+                    'btc_amount': btc_amount,
+                    'price': limit_price,
+                    'fee': fee,
+                    'timestamp': datetime.datetime.now().isoformat()
+                }).execute()
+            except Exception as trade_err:
+                print(f"Warning: trade log insert failed (non-critical): {trade_err}")
+
+            session['sell_limit_order'] = None
+            session.modified = True
+            return jsonify({
+                'triggered': True,
+                'usd_balance': final_usd,
+                'btc_balance': final_btc,
+                'avg_buy_price': final_avg,
+                'active_sell_limit_order': None,
+                'message': f'Sell Limit ордер виконано! Продано {btc_amount:.8f} BTC за ціною ${limit_price:.2f}'
+            }), 200
+
+        # ── STEP 3: Session fallback (Supabase wallet update failed) ─────────────
+        if 'wallet' not in session:
+            session['wallet'] = {'usd_balance': 100.0, 'btc_balance': 0.0, 'avg_buy_price': 0.0}
+        if 'trades' not in session:
+            session['trades'] = []
+
+        btc_balance = float(session['wallet']['btc_balance'])
+        usd_balance = float(session['wallet']['usd_balance'])
+        avg_buy_price = float(session['wallet']['avg_buy_price'])
+
+        if supabase:
+            try:
+                fresh_res = supabase.table('wallets').select('*').eq('user_id', user_id).execute()
+                fresh_data = getattr(fresh_res, 'data', [])
+                if fresh_data:
+                    usd_balance = float(fresh_data[0]['usd_balance'])
+                    if not sell_limit_order.get('supabase_deducted', True):
+                        btc_balance = float(fresh_data[0]['btc_balance'])
+                        avg_buy_price = float(fresh_data[0]['avg_buy_price'])
+                        btc_balance -= btc_amount
+                        avg_buy_price = avg_buy_price if btc_balance > 0 else 0.0
+            except Exception as fresh_err:
+                print(f"Session fallback: could not read fresh Supabase balance: {fresh_err}")
+
+        new_usd_balance = usd_balance + proceeds
+
+        session['wallet']['usd_balance'] = new_usd_balance
+        session['wallet']['btc_balance'] = btc_balance
+        session['wallet']['avg_buy_price'] = avg_buy_price
+
+        trade_log = {
+            'id': len(session['trades']) + 1,
+            'user_id': user_id,
+            'type': 'sell',
+            'btc_amount': btc_amount,
+            'price': limit_price,
+            'fee': fee,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        session['trades'].insert(0, trade_log)
+        session['sell_limit_order'] = None
+        session.modified = True
+
+        if supabase:
+            try:
+                supabase.table('wallets').update({
+                    'usd_balance': new_usd_balance,
+                    'btc_balance': btc_balance,
+                    'avg_buy_price': avg_buy_price,
+                    'updated_at': datetime.datetime.now().isoformat()
+                }).eq('user_id', user_id).execute()
+                try:
+                    supabase.table('trades').insert({
+                        'user_id': user_id,
+                        'type': 'sell',
+                        'btc_amount': btc_amount,
+                        'price': limit_price,
+                        'fee': fee,
+                        'timestamp': datetime.datetime.now().isoformat()
+                    }).execute()
+                except Exception:
+                    pass
+            except Exception as sync_err:
+                print(f"Session fallback: failed to sync balances to Supabase: {sync_err}")
+
+        return jsonify({
+            'triggered': True,
+            'usd_balance': new_usd_balance,
+            'btc_balance': btc_balance,
+            'avg_buy_price': avg_buy_price,
+            'active_sell_limit_order': None,
+            'message': f'Sell Limit ордер виконано! Продано {btc_amount:.8f} BTC за ціною ${limit_price:.2f}'
+        }), 200
+
+    return jsonify({'active': True, 'triggered': False}), 200
+
 
 @app.route('/')
 def index():
