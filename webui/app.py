@@ -8,6 +8,10 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 import sys
 import warnings
+import threading
+import time
+import urllib.request
+import urllib.error
 import datetime
 import subprocess
 from dotenv import load_dotenv
@@ -2380,6 +2384,98 @@ def get_today_data():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Ticks history database background accumulator
+TICKS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'ticks_history.json')
+tick_database_size = 17280
+ticks_list = []
+ticks_lock = threading.Lock()
+
+def load_ticks_history():
+    global ticks_list, tick_database_size
+    try:
+        if os.path.exists(TICKS_FILE):
+            with open(TICKS_FILE, 'r') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    ticks_list = data.get('ticks', [])
+                    tick_database_size = data.get('tick_database_size', 17280)
+                elif isinstance(data, list):
+                    ticks_list = data
+            print(f"Loaded {len(ticks_list)} ticks from history file.")
+    except Exception as e:
+        print(f"Error loading ticks history: {e}")
+
+def save_ticks_history():
+    try:
+        os.makedirs(os.path.dirname(TICKS_FILE), exist_ok=True)
+        with open(TICKS_FILE, 'w') as f:
+            json.dump({
+                'ticks': ticks_list,
+                'tick_database_size': tick_database_size
+            }, f)
+    except Exception as e:
+        print(f"Error saving ticks history: {e}")
+
+def tick_accumulation_loop():
+    global ticks_list
+    print("Starting background tick accumulation thread...")
+    while True:
+        try:
+            url = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                res_data = json.loads(response.read().decode())
+                price = float(res_data['price'])
+                if price > 0:
+                    with ticks_lock:
+                        ticks_list.append(price)
+                        while len(ticks_list) > tick_database_size:
+                            ticks_list.pop(0)
+                        save_ticks_history()
+        except Exception as e:
+            pass
+        time.sleep(5)
+
+# Load existing ticks history and start the polling thread
+load_ticks_history()
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    t = threading.Thread(target=tick_accumulation_loop, daemon=True)
+    t.start()
+
+@app.route('/api/exchange/ticks-history', methods=['GET'])
+def get_ticks_history():
+    with ticks_lock:
+        return jsonify({
+            'success': True,
+            'ticks': ticks_list,
+            'tick_database_size': tick_database_size
+        })
+
+@app.route('/api/exchange/tick-database-size', methods=['POST'])
+def update_tick_database_size():
+    global tick_database_size, ticks_list
+    data = request.get_json() or {}
+    new_size = data.get('size')
+    if new_size is None:
+        return jsonify({'error': 'Missing size parameter'}), 400
+    try:
+        new_size = int(new_size)
+        if new_size < 2:
+            return jsonify({'error': 'Size must be at least 2'}), 400
+    except ValueError:
+        return jsonify({'error': 'Invalid size value'}), 400
+        
+    with ticks_lock:
+        tick_database_size = new_size
+        while len(ticks_list) > tick_database_size:
+            ticks_list.pop(0)
+        save_ticks_history()
+        
+    return jsonify({
+        'success': True,
+        'tick_database_size': tick_database_size
+    })
 
 if __name__ == '__main__':
     print("Starting Kronos Web UI...")

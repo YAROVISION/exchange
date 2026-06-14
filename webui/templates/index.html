@@ -1257,6 +1257,12 @@
                                             <td id="metrics-price-min" style="padding: 8px 0; font-weight: bold; text-align: right; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</td>
                                         </tr>
                                         <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">База тіків</td>
+                                            <td style="padding: 8px 0; text-align: right; vertical-align: middle;">
+                                                <input id="metrics-database-size" type="number" min="2" max="100000" value="17280" onchange="handleDatabaseSizeChange(this.value)" style="width: 70px; padding: 3px 6px; text-align: right; border: 1px solid var(--coffee-light); border-radius: 4px; background-color: var(--coffee-latte); color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 13px;">
+                                            </td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
                                             <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">Кількість тіків</td>
                                             <td style="padding: 8px 0; text-align: right; vertical-align: middle;">
                                                 <input id="metrics-history-size" type="number" min="2" max="10000" value="1500" oninput="handleWindowSizeChange(this.value)" style="width: 70px; padding: 3px 6px; text-align: right; border: 1px solid var(--coffee-light); border-radius: 4px; background-color: var(--coffee-latte); color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 13px;">
@@ -1532,6 +1538,9 @@
 
             // Load today's rate and forecasts
             await loadTodayData();
+
+            // Load saved ticks history from backend
+            await fetchTicksHistory();
 
             // Load Exchange Game State and start price polling
             loadGameState();
@@ -2689,20 +2698,8 @@
             }
         }
 
-        // Handle price history window size change
-        function handleWindowSizeChange(value) {
-            let newSize = parseInt(value);
-            if (isNaN(newSize) || newSize < 2) {
-                newSize = 2; // Minimum window size is 2
-            }
-            btcHistoryWindowSize = newSize;
-
-            // Trim raw price array to new size
-            while (btcPriceHistory50.length > btcHistoryWindowSize) {
-                btcPriceHistory50.shift();
-            }
-
-            // Recalculate historical metric arrays based on the new window size and remaining prices
+        // Recalculate historical metric arrays based on the current raw price array and window size
+        function recalculateAllHistoryMetrics() {
             btcAverageHistory50 = [];
             btc75History50 = [];
             btc25History50 = [];
@@ -2726,9 +2723,76 @@
                 btc25History50.push(val25);
                 btc25Plus03History50.push(val25 * 1.003);
             }
+        }
+
+        // Handle price history window size change
+        function handleWindowSizeChange(value) {
+            let newSize = parseInt(value);
+            if (isNaN(newSize) || newSize < 2) {
+                newSize = 2; // Minimum window size is 2
+            }
+            btcHistoryWindowSize = newSize;
+
+            // Trim raw price array to new size
+            while (btcPriceHistory50.length > btcHistoryWindowSize) {
+                btcPriceHistory50.shift();
+            }
+
+            // Recalculate all history arrays
+            recalculateAllHistoryMetrics();
 
             // Force recalculation and redraw
             updatePriceHistoryMetrics();
+        }
+
+        // Handle tick database size change (tells backend to adjust limit)
+        async function handleDatabaseSizeChange(value) {
+            let newSize = parseInt(value);
+            if (isNaN(newSize) || newSize < 2) {
+                newSize = 2;
+                document.getElementById('metrics-database-size').value = 2;
+            }
+            try {
+                const response = await fetch('/api/exchange/tick-database-size', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ size: newSize })
+                });
+                if (response.ok) {
+                    console.log("Tick database size updated on backend:", newSize);
+                }
+            } catch (e) {
+                console.error("Failed to update tick database size on backend:", e);
+            }
+        }
+
+        // Fetch persisted ticks history from backend
+        async function fetchTicksHistory() {
+            try {
+                const response = await fetch('/api/exchange/ticks-history');
+                if (response.ok) {
+                    const data = await response.json();
+                    const loadedTicks = data.ticks || [];
+                    
+                    if (data.tick_database_size) {
+                        const dbSizeInput = document.getElementById('metrics-database-size');
+                        if (dbSizeInput) {
+                            dbSizeInput.value = data.tick_database_size;
+                        }
+                    }
+
+                    // Populate history with the loaded ticks
+                    btcPriceHistory50 = loadedTicks.slice(-btcHistoryWindowSize);
+                    
+                    // Recalculate all metrics and curves
+                    recalculateAllHistoryMetrics();
+                    
+                    // Redraw chart and update stats
+                    updatePriceHistoryMetrics();
+                }
+            } catch (e) {
+                console.error("Failed to fetch ticks history from backend:", e);
+            }
         }
 
         // Update Price History Metrics
@@ -3085,7 +3149,7 @@
             chartDiv.style.height = `${dynamicHeight}px`;
 
             const layout = {
-                margin: { t: 15, b: 70, l: 55, r: 15 },
+                margin: { t: 15, b: 70, l: 65, r: 25 },
                 height: dynamicHeight - 15,
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
@@ -3100,7 +3164,7 @@
                 xaxis: {
                     gridcolor: 'rgba(218, 192, 163, 0.15)',
                     tickfont: { size: 9, color: '#2C1A11' },
-                    range: [1, btcPriceHistory50.length],
+                    range: [1, btcPriceHistory50.length + Math.max(1, btcPriceHistory50.length * 0.02)],
                     dtick: Math.max(1, Math.ceil(btcPriceHistory50.length / 10)),
                     title: {
                         text: `Оновлення (останні ${btcPriceHistory50.length})`,
