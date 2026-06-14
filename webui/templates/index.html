@@ -873,14 +873,14 @@
         <div class="main-content">
             <div class="control-panel">
                 <div class="tabs-container">
-                    <button class="tab-btn active" id="tab-forecast-btn" onclick="switchTab('forecast')">🔮 Прогнозування</button>
+                    <button class="tab-btn active" id="tab-exchange-btn" onclick="switchTab('exchange')">🏦 Біржа</button>
+                    <button class="tab-btn" id="tab-forecast-btn" onclick="switchTab('forecast')">🔮 Прогнозування</button>
                     <button class="tab-btn" id="tab-finetune-btn" onclick="switchTab('finetune')">⚙️ Донавчання</button>
-                    <button class="tab-btn" id="tab-exchange-btn" onclick="switchTab('exchange')">🏦 Біржа</button>
                     <button class="tab-btn" id="tab-auth-btn" onclick="switchTab('auth')">🔐 Вхід/Реєстрація</button>
                 </div>
 
                 <!-- Forecast Tab Content -->
-                <div id="forecast-tab-content" class="tab-content">
+                <div id="forecast-tab-content" class="tab-content" style="display: none;">
                     <!-- Model Selection -->
                     <div class="form-group">
                         <label for="model-select">Оберіть модель:</label>
@@ -1044,7 +1044,7 @@
                 </div>
 
                 <!-- Exchange Tab Content -->
-                <div id="exchange-tab-content" class="tab-content" style="display: none;">
+                <div id="exchange-tab-content" class="tab-content">
                     <h2>🏦 Симулятор торгівлі BTC</h2>
                     <div id="exchange-login-prompt" style="display: none; background: #FFF3CD; color: #856404; border: 1px solid #FFEBAA; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; font-size: 14px; text-align: center;"></div>
 
@@ -1192,6 +1192,92 @@
                             <button class="btn-reset-game" onclick="resetGameBalance()">
                                 🔄 Скинути баланс до $100.00
                             </button>
+                        </div>
+
+                        <!-- Indicators / Metrics Section -->
+                        <div class="metrics-section" style="display: none; margin-top: 20px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
+                            <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
+                                📊 Показники
+                            </h4>
+                            
+                            <div class="exchange-wallet-grid">
+                                <div class="exchange-card">
+                                    <h4>Загальний капітал</h4>
+                                    <div id="metrics-total-equity" class="value">$100.00</div>
+                                </div>
+                                <div class="exchange-card">
+                                    <h4>Чистий прибуток</h4>
+                                    <div id="metrics-net-profit" class="value">+$0.00 (0.00%)</div>
+                                </div>
+                                <div class="exchange-card">
+                                    <h4>Середній вхід</h4>
+                                    <div id="metrics-avg-buy-price" class="value">$-.--</div>
+                                </div>
+                                <div class="exchange-card">
+                                    <h4>Нефіксований PnL</h4>
+                                    <div id="metrics-unrealized-pnl" class="value">$-.--</div>
+                                </div>
+                            </div>
+
+                            <!-- Price History Statistics -->
+                            <div style="margin-top: 15px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
+                                <h5 style="margin-top: 0; margin-bottom: 12px; font-size: 13px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
+                                    📈 Статистика курсу (останні <span id="price-history-count">0</span> оновлень)
+                                </h5>
+                                <div class="exchange-card" style="padding: 12px 18px; text-align: left;">
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent);">Максимум</td>
+                                            <td id="metrics-price-max" style="padding: 8px 0; font-weight: bold; text-align: right; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">75% Рівень</td>
+                                            <td style="padding: 8px 0; text-align: right; vertical-align: middle;">
+                                                <div id="metrics-price-75" style="font-weight: bold; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</div>
+                                                <div id="metrics-price-75-diff" style="font-size: 10px; color: var(--coffee-accent); font-weight: normal; margin-top: 2px;">-</div>
+                                            </td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent);">Поточний курс</td>
+                                            <td id="metrics-price-current" style="padding: 8px 0; font-weight: bold; text-align: right; color: #bf360c; font-family: 'JetBrains Mono', monospace;">$-.--</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent);">Середнє значення</td>
+                                            <td id="metrics-price-avg" style="padding: 8px 0; font-weight: bold; text-align: right; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">25% Рівень</td>
+                                            <td style="padding: 8px 0; text-align: right; vertical-align: middle;">
+                                                <div id="metrics-price-25" style="font-weight: bold; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</div>
+                                                <div id="metrics-price-25-diff" style="font-size: 10px; color: var(--coffee-accent); font-weight: normal; margin-top: 2px;">-</div>
+                                            </td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent);">Мінімум</td>
+                                            <td id="metrics-price-min" style="padding: 8px 0; font-weight: bold; text-align: right; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace;">$-.--</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid var(--coffee-light);">
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">Кількість тіків</td>
+                                            <td style="padding: 8px 0; text-align: right; vertical-align: middle;">
+                                                <input id="metrics-history-size" type="number" min="2" max="10000" value="1500" oninput="handleWindowSizeChange(this.value)" style="width: 70px; padding: 3px 6px; text-align: right; border: 1px solid var(--coffee-light); border-radius: 4px; background-color: var(--coffee-latte); color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 13px;">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 8px 0; font-weight: 600; color: var(--coffee-accent); vertical-align: middle;">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <span>Виграш</span>
+                                                    <button onclick="resetVirtualProfit(event)" onmouseover="this.style.backgroundColor='var(--coffee-dark)';" onmouseout="this.style.backgroundColor='var(--coffee-accent)';" style="margin: 0; padding: 2px 8px; font-size: 10px; background-color: var(--coffee-accent); color: white; border-radius: 4px; border: 1px solid var(--coffee-light); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-weight: bold; width: auto; transition: background-color 0.2s ease;">Скинути</button>
+                                                </div>
+                                            </td>
+                                            <td id="metrics-virtual-profit" style="padding: 8px 0; text-align: right; color: var(--coffee-dark); font-family: 'JetBrains Mono', monospace; vertical-align: middle;">
+                                                <div style="font-size: 13px; font-weight: bold; color: var(--coffee-dark);">$100.00 USD / 0.00000000 BTC</div>
+                                                <div style="font-size: 10px; color: var(--coffee-accent); font-weight: normal; margin-top: 2px;">Капітал: $100.00 (0.00%)</div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div id="metrics-history-chart" style="height: 300px; margin-top: 15px; background: rgba(255, 255, 255, 0.4); border: 1px solid var(--coffee-light); border-radius: 8px; padding: 5px; margin-bottom: 15px;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2122,6 +2208,17 @@
         let currentBtcPrice = 0.00;
         let exchangeMode = 'buy'; // 'buy' or 'sell'
         let activePosition = null; // { btcAmount, purchaseDate, purchasePrice }
+        let btcPriceHistory50 = []; // Last 50 BTC price updates for metrics
+        let btcAverageHistory50 = []; // Last 50 running average calculations for chart history
+        let btc75History50 = []; // Last 50 calculations of the 75% level for chart history
+        let btc25History50 = []; // Last 50 calculations of the 25% level for chart history
+        let btc25Plus03History50 = []; // Last calculations of the 25% level + 0.3% for chart history
+        let btcHistoryWindowSize = 1500; // Dynamic window size for statistics (defaults to 1500)
+        let virtualTradeState = 'idle'; // 'idle' or 'holding'
+        let virtualTradeSubState = 'waiting_75'; // 'waiting_75' or 'waiting_breakeven'
+        let virtualBuyPrice = 0;
+        let virtualWalletUsd = 100.00;
+        let virtualWalletBtc = 0.00;
 
         // Auth State Variables
         let isLoggedIn = false;
@@ -2348,6 +2445,16 @@
                     }
                 }
             }
+
+            // metrics section access control
+            const metricsSection = document.querySelector('.metrics-section');
+            if (metricsSection) {
+                if (isLoggedIn && isEmailAdmin) {
+                    metricsSection.style.display = 'block';
+                } else {
+                    metricsSection.style.display = 'none';
+                }
+            }
         }
 
         async function handleLogin() {
@@ -2483,6 +2590,546 @@
                     detailsEl.textContent = 'Активні операції відсутні';
                 }
             }
+
+            // Update Metrics Elements
+            const totalEquity = walletUsd + (walletBtc * (currentBtcPrice > 0 ? currentBtcPrice : 0));
+            const netProfit = totalEquity - 100.00;
+            const netProfitPct = (netProfit / 100.00) * 100;
+            const avgBuyPrice = activePosition ? activePosition.purchasePrice : 0.0;
+            
+            let unrealizedPnl = 0.0;
+            let unrealizedPnlPct = 0.0;
+            if (walletBtc > 0 && avgBuyPrice > 0 && currentBtcPrice > 0) {
+                unrealizedPnl = walletBtc * (currentBtcPrice - avgBuyPrice);
+                unrealizedPnlPct = ((currentBtcPrice - avgBuyPrice) / avgBuyPrice) * 100;
+            }
+
+            const totalEquityEl = document.getElementById('metrics-total-equity');
+            const netProfitEl = document.getElementById('metrics-net-profit');
+            const avgBuyPriceEl = document.getElementById('metrics-avg-buy-price');
+            const unrealizedPnlEl = document.getElementById('metrics-unrealized-pnl');
+
+            if (totalEquityEl) {
+                totalEquityEl.textContent = `$${totalEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+
+            if (netProfitEl) {
+                const sign = netProfit >= 0 ? '+' : '';
+                netProfitEl.textContent = `${sign}$${netProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${sign}${netProfitPct.toFixed(2)}%)`;
+                if (netProfit > 0) {
+                    netProfitEl.style.color = '#2e7d32'; // Green
+                } else if (netProfit < 0) {
+                    netProfitEl.style.color = '#c62828'; // Red
+                } else {
+                    netProfitEl.style.color = 'var(--coffee-dark)';
+                }
+            }
+
+            if (avgBuyPriceEl) {
+                if (avgBuyPrice > 0) {
+                    avgBuyPriceEl.textContent = `$${avgBuyPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                } else {
+                    avgBuyPriceEl.textContent = '$-.--';
+                }
+            }
+
+            if (unrealizedPnlEl) {
+                if (walletBtc > 0 && avgBuyPrice > 0 && currentBtcPrice > 0) {
+                    const sign = unrealizedPnl >= 0 ? '+' : '';
+                    unrealizedPnlEl.textContent = `${sign}$${unrealizedPnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${sign}${unrealizedPnlPct.toFixed(2)}%)`;
+                    if (unrealizedPnl > 0) {
+                        unrealizedPnlEl.style.color = '#2e7d32'; // Green
+                    } else if (unrealizedPnl < 0) {
+                        unrealizedPnlEl.style.color = '#c62828'; // Red
+                    } else {
+                        unrealizedPnlEl.style.color = 'var(--coffee-dark)';
+                    }
+                } else {
+                    unrealizedPnlEl.textContent = '$-.--';
+                    unrealizedPnlEl.style.color = 'var(--coffee-dark)';
+                }
+            }
+
+            // Update Price History Metrics
+            updatePriceHistoryMetrics();
+        }
+
+        // Add price to history
+        function addBtcPriceToHistory(price) {
+            if (price <= 0 || isNaN(price)) return;
+            btcPriceHistory50.push(price);
+            while (btcPriceHistory50.length > btcHistoryWindowSize) {
+                btcPriceHistory50.shift();
+            }
+            // Calculate current running average and add to history
+            const sum = btcPriceHistory50.reduce((a, b) => a + b, 0);
+            const avg = sum / btcPriceHistory50.length;
+            btcAverageHistory50.push(avg);
+            while (btcAverageHistory50.length > btcHistoryWindowSize) {
+                btcAverageHistory50.shift();
+            }
+            // Calculate current 75% and 25% levels and add to history
+            const max = Math.max(...btcPriceHistory50);
+            const min = Math.min(...btcPriceHistory50);
+            const diff = max - min;
+            const val75 = min + 0.75 * diff;
+            const val25 = min + 0.25 * diff;
+            
+            btc75History50.push(val75);
+            while (btc75History50.length > btcHistoryWindowSize) {
+                btc75History50.shift();
+            }
+            btc25History50.push(val25);
+            while (btc25History50.length > btcHistoryWindowSize) {
+                btc25History50.shift();
+            }
+            btc25Plus03History50.push(val25 * 1.003);
+            while (btc25Plus03History50.length > btcHistoryWindowSize) {
+                btc25Plus03History50.shift();
+            }
+        }
+
+        // Handle price history window size change
+        function handleWindowSizeChange(value) {
+            let newSize = parseInt(value);
+            if (isNaN(newSize) || newSize < 2) {
+                newSize = 2; // Minimum window size is 2
+            }
+            btcHistoryWindowSize = newSize;
+
+            // Trim raw price array to new size
+            while (btcPriceHistory50.length > btcHistoryWindowSize) {
+                btcPriceHistory50.shift();
+            }
+
+            // Recalculate historical metric arrays based on the new window size and remaining prices
+            btcAverageHistory50 = [];
+            btc75History50 = [];
+            btc25History50 = [];
+            btc25Plus03History50 = [];
+
+            for (let i = 0; i < btcPriceHistory50.length; i++) {
+                const startIdx = Math.max(0, i - btcHistoryWindowSize + 1);
+                const windowPrices = btcPriceHistory50.slice(startIdx, i + 1);
+                
+                const sum = windowPrices.reduce((a, b) => a + b, 0);
+                const avg = sum / windowPrices.length;
+                btcAverageHistory50.push(avg);
+
+                const max = Math.max(...windowPrices);
+                const min = Math.min(...windowPrices);
+                const diff = max - min;
+                const val75 = min + 0.75 * diff;
+                const val25 = min + 0.25 * diff;
+
+                btc75History50.push(val75);
+                btc25History50.push(val25);
+                btc25Plus03History50.push(val25 * 1.003);
+            }
+
+            // Force recalculation and redraw
+            updatePriceHistoryMetrics();
+        }
+
+        // Update Price History Metrics
+        function updatePriceHistoryMetrics() {
+            const countEl = document.getElementById('price-history-count');
+            const maxEl = document.getElementById('metrics-price-max');
+            const minEl = document.getElementById('metrics-price-min');
+            const avgEl = document.getElementById('metrics-price-avg');
+            const currentEl = document.getElementById('metrics-price-current');
+            const pct75El = document.getElementById('metrics-price-75');
+            const pct75DiffEl = document.getElementById('metrics-price-75-diff');
+            const pct25El = document.getElementById('metrics-price-25');
+            const pct25DiffEl = document.getElementById('metrics-price-25-diff');
+
+            if (countEl) countEl.textContent = btcPriceHistory50.length;
+
+            if (btcPriceHistory50.length === 0) {
+                if (maxEl) maxEl.textContent = '$-.--';
+                if (minEl) minEl.textContent = '$-.--';
+                if (avgEl) avgEl.textContent = '$-.--';
+                if (currentEl) currentEl.textContent = '$-.--';
+                if (pct75El) pct75El.textContent = '$-.--';
+                if (pct75DiffEl) pct75DiffEl.textContent = '-';
+                if (pct25El) pct25El.textContent = '$-.--';
+                if (pct25DiffEl) pct25DiffEl.textContent = '-';
+                
+                const virtualProfitEl = document.getElementById('metrics-virtual-profit');
+                if (virtualProfitEl) {
+                    virtualProfitEl.innerHTML = `<div style="font-size: 13px; font-weight: bold; color: var(--coffee-dark);">$100.00 USD / 0.00000000 BTC</div><div style="font-size: 10px; color: var(--coffee-accent); font-weight: normal; margin-top: 2px;">Капітал: $100.00 (0.00%) | Накопичення історії (0/${btcHistoryWindowSize})</div>`;
+                    virtualProfitEl.style.color = 'var(--coffee-dark)';
+                }
+                
+                updatePriceHistoryChart();
+                return;
+            }
+
+            const maxPrice = Math.max(...btcPriceHistory50);
+            const minPrice = Math.min(...btcPriceHistory50);
+            const sum = btcPriceHistory50.reduce((a, b) => a + b, 0);
+            const avgPrice = sum / btcPriceHistory50.length;
+            const diff = maxPrice - minPrice;
+            
+            const val75 = minPrice + 0.75 * diff;
+            const diff75 = 0.75 * diff;
+            
+            const val25 = minPrice + 0.25 * diff;
+            const diff25 = 0.25 * diff;
+
+            // Run virtual trading strategy
+            if (currentBtcPrice > 0 && btcPriceHistory50.length >= 2 && maxPrice > minPrice) {
+                if (virtualTradeState === 'idle') {
+                    if (currentBtcPrice <= val25 && btcPriceHistory50.length >= btcHistoryWindowSize) {
+                        if (virtualWalletUsd > 0) {
+                            virtualWalletBtc = virtualWalletUsd / (currentBtcPrice * 1.001);
+                            virtualWalletUsd = 0;
+                            virtualTradeState = 'holding';
+                            virtualTradeSubState = 'waiting_75';
+                            virtualBuyPrice = currentBtcPrice;
+                        }
+                    }
+                } else if (virtualTradeState === 'holding') {
+                    if (virtualTradeSubState === 'waiting_75') {
+                        if (currentBtcPrice >= val75) {
+                            if (virtualWalletBtc > 0) {
+                                // Compare purchase cost with sell proceeds:
+                                if (currentBtcPrice * 0.999 >= virtualBuyPrice * 1.001) {
+                                    virtualWalletUsd = virtualWalletBtc * currentBtcPrice * 0.999;
+                                    virtualWalletBtc = 0;
+                                    virtualTradeState = 'idle';
+                                    virtualTradeSubState = 'waiting_75';
+                                    virtualBuyPrice = 0;
+                                } else {
+                                    // Transition to comparing current course with purchase cost + 0.1% commission
+                                    virtualTradeSubState = 'waiting_breakeven';
+                                }
+                            }
+                        }
+                    }
+                    if (virtualTradeSubState === 'waiting_breakeven') {
+                        if (currentBtcPrice >= virtualBuyPrice * 1.003) {
+                            if (virtualWalletBtc > 0) {
+                                virtualWalletUsd = virtualWalletBtc * currentBtcPrice * 0.999;
+                                virtualWalletBtc = 0;
+                                virtualTradeState = 'idle';
+                                virtualTradeSubState = 'waiting_75';
+                                virtualBuyPrice = 0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            const format = (val) => `$${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            if (maxEl) maxEl.textContent = format(maxPrice);
+            if (minEl) minEl.textContent = format(minPrice);
+            if (avgEl) avgEl.textContent = format(avgPrice);
+            if (currentEl && currentBtcPrice > 0) currentEl.textContent = format(currentBtcPrice);
+            
+            if (pct75El) pct75El.textContent = format(val75);
+            if (pct75DiffEl) pct75DiffEl.textContent = `75% від різниці: $${diff75.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            if (pct25El) pct25El.textContent = format(val25);
+            if (pct25DiffEl) pct25DiffEl.textContent = `25% від різниці: $${diff25.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            const virtualProfitEl = document.getElementById('metrics-virtual-profit');
+            if (virtualProfitEl) {
+                const currentEquity = virtualWalletUsd + (virtualWalletBtc * currentBtcPrice * 0.999);
+                const profit = currentEquity - 100.00;
+                const sign = profit >= 0 ? '+' : '';
+                
+                const pctChange = ((currentEquity - 100.00) / 100.00) * 100;
+                
+                let text = `<div style="font-size: 13px; font-weight: bold; color: var(--coffee-dark);">`;
+                text += `$${virtualWalletUsd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD`;
+                text += ` / `;
+                text += `${virtualWalletBtc.toFixed(8)} BTC`;
+                text += `</div>`;
+                
+                text += `<div style="font-size: 10px; color: var(--coffee-accent); font-weight: normal; margin-top: 2px;">`;
+                text += `Капітал: $${currentEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${sign}${pctChange.toFixed(2)}%)`;
+                if (virtualTradeState === 'holding') {
+                    text += ` | Вхід: $${virtualBuyPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
+                    if (virtualTradeSubState === 'waiting_breakeven') {
+                        text += ` | <span style="color: #c62828; font-weight: bold;">Очікування беззбитковості (≥ $${(virtualBuyPrice * 1.003).toLocaleString(undefined, {maximumFractionDigits: 2})})</span>`;
+                    } else {
+                        text += ` | Очікування 75% рівня (≥ $${val75.toLocaleString(undefined, {maximumFractionDigits: 2})})`;
+                    }
+                } else if (btcPriceHistory50.length < btcHistoryWindowSize) {
+                    text += ` | Накопичення історії (${btcPriceHistory50.length}/${btcHistoryWindowSize})`;
+                }
+                text += `</div>`;
+                
+                virtualProfitEl.innerHTML = text;
+                if (profit > 0) {
+                    virtualProfitEl.style.color = '#2e7d32';
+                } else if (profit < 0) {
+                    virtualProfitEl.style.color = '#c62828';
+                } else {
+                    virtualProfitEl.style.color = 'var(--coffee-dark)';
+                }
+            }
+
+            // Update Chart
+            updatePriceHistoryChart();
+        }
+
+        // Reset virtual profit strategy
+        function resetVirtualProfit(event) {
+            if (event) event.stopPropagation();
+            virtualWalletUsd = 100.00;
+            virtualWalletBtc = 0.00;
+            virtualTradeState = 'idle';
+            virtualBuyPrice = 0;
+            updatePriceHistoryMetrics();
+        }
+
+        // Draw animated dynamic chart for price history
+        function updatePriceHistoryChart() {
+            const chartDiv = document.getElementById('metrics-history-chart');
+            if (!chartDiv) return;
+
+            if (btcPriceHistory50.length < 2) {
+                chartDiv.style.height = '300px';
+                chartDiv.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--coffee-accent); font-weight:600; font-size:12px;">📊 Очікування даних (потрібно щонайменше 2 оновлення ціни)...</div>';
+                return;
+            }
+
+            // Clear placeholder text if it exists
+            if (chartDiv.querySelector('div') && chartDiv.querySelector('div').textContent.includes('Очікування')) {
+                chartDiv.innerHTML = '';
+            }
+
+            const maxPrice = Math.max(...btcPriceHistory50);
+            const minPrice = Math.min(...btcPriceHistory50);
+            const sum = btcPriceHistory50.reduce((a, b) => a + b, 0);
+            const avgPrice = sum / btcPriceHistory50.length;
+            const diff = maxPrice - minPrice;
+            
+            const val75 = minPrice + 0.75 * diff;
+            const val25 = minPrice + 0.25 * diff;
+
+            const xValues = btcPriceHistory50.map((_, i) => i + 1);
+
+            const priceTrace = {
+                x: xValues,
+                y: btcPriceHistory50,
+                mode: 'lines',
+                name: 'Поточний курс',
+                line: {
+                    color: '#8B5E3C', // var(--coffee-accent)
+                    width: 2.5,
+                    shape: 'spline' // Smooth spline curve
+                },
+                hoverinfo: 'y'
+            };
+
+            const currentTrace = {
+                x: [btcPriceHistory50.length],
+                y: [currentBtcPrice],
+                mode: 'markers',
+                name: 'Останній тік',
+                cliponaxis: false,
+                marker: {
+                    color: '#2C1A11', // var(--coffee-dark)
+                    size: 8,
+                    line: {
+                        color: '#ffffff',
+                        width: 1.5
+                    }
+                },
+                hoverinfo: 'y'
+            };
+
+            const horizontalLineTrace = (value, name, color, dashStyle) => {
+                return {
+                    x: [1, btcPriceHistory50.length],
+                    y: [value, value],
+                    mode: 'lines',
+                    name: name,
+                    line: {
+                        color: color,
+                        width: 1.2,
+                        dash: dashStyle
+                    },
+                    hoverinfo: 'name+y'
+                };
+            };
+
+            const val75Line = {
+                x: xValues,
+                y: btc75History50,
+                mode: 'lines',
+                name: '75% Рівень',
+                line: {
+                    color: '#ef6c00',
+                    width: 1.2,
+                    dash: 'dashdot'
+                },
+                hoverinfo: 'name+y'
+            };
+            const maxLine = horizontalLineTrace(maxPrice, 'Максимум', '#c62828', 'dot');
+            maxLine.fill = 'tonexty';
+            maxLine.fillcolor = 'rgba(198, 40, 40, 0.15)';
+            const avgLine = {
+                x: xValues,
+                y: btcAverageHistory50,
+                mode: 'lines',
+                name: 'Середнє',
+                line: {
+                    color: '#5d4037',
+                    width: 1.5,
+                    dash: 'dash'
+                },
+                hoverinfo: 'name+y'
+            };
+            
+            const minLine = horizontalLineTrace(minPrice, 'Мінімум', '#388e3c', 'dot');
+            const val25Line = {
+                x: xValues,
+                y: btc25History50,
+                mode: 'lines',
+                name: '25% Рівень',
+                line: {
+                    color: '#1976d2',
+                    width: 1.2,
+                    dash: 'dashdot'
+                },
+                fill: 'tonexty',
+                fillcolor: 'rgba(56, 142, 60, 0.15)',
+                hoverinfo: 'name+y'
+            };
+            const val25Plus03Line = {
+                x: xValues,
+                y: btc25Plus03History50,
+                mode: 'lines',
+                name: '0.3%',
+                line: {
+                    color: '#7b1fa2',
+                    width: 1.2,
+                    dash: 'dash'
+                },
+                hoverinfo: 'name+y'
+            };
+
+            const data = [priceTrace, currentTrace];
+
+            if (virtualTradeState === 'holding' && virtualBuyPrice > 0) {
+                const entryTrace = {
+                    x: [btcPriceHistory50.length],
+                    y: [virtualBuyPrice],
+                    mode: 'markers',
+                    name: 'Точка входу',
+                    cliponaxis: false,
+                    marker: {
+                        color: '#d84315',
+                        symbol: 'star',
+                        size: 11,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    hoverinfo: 'name+y'
+                };
+                data.push(entryTrace);
+
+                const breakevenTrace = {
+                    x: [btcPriceHistory50.length],
+                    y: [virtualBuyPrice * 1.003],
+                    mode: 'markers',
+                    name: 'Точка беззбитковості',
+                    cliponaxis: false,
+                    marker: {
+                        color: '#ff8f00',
+                        symbol: 'diamond',
+                        size: 9,
+                        line: {
+                            color: '#ffffff',
+                            width: 1.5
+                        }
+                    },
+                    hoverinfo: 'name+y'
+                };
+                data.push(breakevenTrace);
+            }
+
+            data.push(val75Line, maxLine, avgLine, minLine, val25Line, val25Plus03Line);
+
+            // Define Y axis range with a bit of padding to avoid clipping
+            // Gather all values plotted on the chart to ensure they are fully visible
+            let allDisplayedValues = [...btcPriceHistory50];
+            if (btcAverageHistory50.length > 0) allDisplayedValues.push(...btcAverageHistory50);
+            if (btc75History50.length > 0) allDisplayedValues.push(...btc75History50);
+            if (btc25History50.length > 0) allDisplayedValues.push(...btc25History50);
+            if (btc25Plus03History50.length > 0) allDisplayedValues.push(...btc25Plus03History50);
+            if (virtualTradeState === 'holding' && virtualBuyPrice > 0) {
+                allDisplayedValues.push(virtualBuyPrice);
+                allDisplayedValues.push(virtualBuyPrice * 1.003);
+            }
+            
+            let yMinVal = Math.min(...allDisplayedValues);
+            let yMaxVal = Math.max(...allDisplayedValues);
+            const currentDiff = yMaxVal - yMinVal;
+            const padding = currentDiff > 0 ? currentDiff * 0.05 : 10;
+            const yMin = yMinVal - padding;
+            const yMax = yMaxVal + padding;
+
+            let ratio = 1;
+            if (maxPrice > minPrice) {
+                ratio = (yMaxVal - yMinVal) / (maxPrice - minPrice);
+            }
+            const dynamicHeight = Math.max(300, Math.min(600, Math.round(300 * ratio)));
+            chartDiv.style.height = `${dynamicHeight}px`;
+
+            const layout = {
+                margin: { t: 15, b: 70, l: 55, r: 15 },
+                height: dynamicHeight - 15,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                showlegend: true,
+                legend: {
+                    orientation: 'h',
+                    y: -0.32,
+                    x: 0.5,
+                    xanchor: 'center',
+                    font: { size: 9, color: '#2C1A11' }
+                },
+                xaxis: {
+                    gridcolor: 'rgba(218, 192, 163, 0.15)',
+                    tickfont: { size: 9, color: '#2C1A11' },
+                    range: [1, btcPriceHistory50.length],
+                    dtick: Math.max(1, Math.ceil(btcPriceHistory50.length / 10)),
+                    title: {
+                        text: `Оновлення (останні ${btcPriceHistory50.length})`,
+                        font: { size: 10, color: '#8B5E3C' }
+                    }
+                },
+                yaxis: {
+                    gridcolor: 'rgba(218, 192, 163, 0.15)',
+                    tickfont: { size: 9, color: '#2C1A11' },
+                    range: [yMin, yMax],
+                    exponentformat: 'none',
+                    tickformat: '$,.2f'
+                },
+                hovermode: 'closest',
+                transition: {
+                    duration: 300,
+                    easing: 'cubic-in-out'
+                },
+                frame: {
+                    duration: 300
+                }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: false
+            };
+
+            Plotly.react('metrics-history-chart', data, layout, config);
         }
 
         // Change mode: 'buy' or 'sell'
@@ -2639,6 +3286,15 @@
                         activeSellLimitOrder = null;
                         renderSellLimitOrderState();
 
+                        btcPriceHistory50 = []; // Clear price history on reset
+                        btcAverageHistory50 = [];
+                        btc75History50 = [];
+                        btc25History50 = [];
+                        btc25Plus03History50 = [];
+                        virtualWalletUsd = 100.00; // Reset virtual wallet
+                        virtualWalletBtc = 0.00;
+                        virtualTradeState = 'idle';
+                        virtualBuyPrice = 0;
                         updateExchangeUI();
                         showStatus('info', data.message || 'Баланс успішно скинуто!');
                     } else {
@@ -3492,6 +4148,7 @@
                 const response = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
                 if (response.data && response.data.price) {
                     currentBtcPrice = parseFloat(response.data.price);
+                    addBtcPriceToHistory(currentBtcPrice);
                     updateExchangeUI();
                     updateEquivalent();
 
@@ -3529,6 +4186,7 @@
                     const priceVal = parseFloat(todayOpenText.textContent.replace('$', '').replace(/,/g, '').trim());
                     if (!isNaN(priceVal) && priceVal > 0) {
                         currentBtcPrice = priceVal;
+                        addBtcPriceToHistory(currentBtcPrice);
                         updateExchangeUI();
                         updateEquivalent();
 
