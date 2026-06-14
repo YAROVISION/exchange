@@ -69,7 +69,7 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 2fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
             gap: 30px;
             margin-bottom: 30px;
         }
@@ -81,6 +81,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
             height: fit-content;
             border: 1px solid var(--coffee-light);
+            min-width: 0;
         }
 
         .control-panel h2 {
@@ -348,6 +349,7 @@
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
             border: 1px solid var(--coffee-light);
+            min-width: 0;
         }
 
         .chart-container h2 {
@@ -360,6 +362,8 @@
 
         #chart {
             width: 100%;
+            max-width: 100%;
+            overflow: hidden;
             height: 600px;
         }
 
@@ -1282,7 +1286,7 @@
                                         </tr>
                                     </table>
                                 </div>
-                                <div id="metrics-history-chart" style="height: 300px; margin-top: 15px; background: rgba(255, 255, 255, 0.4); border: 1px solid var(--coffee-light); border-radius: 8px; padding: 5px; margin-bottom: 15px;"></div>
+                                <div id="metrics-history-chart" style="width: 100%; max-width: 100%; overflow: hidden; height: 300px; margin-top: 15px; background: rgba(255, 255, 255, 0.4); border: 1px solid var(--coffee-light); border-radius: 8px; padding: 5px; margin-bottom: 15px;"></div>
                             </div>
                         </div>
                     </div>
@@ -1363,7 +1367,7 @@
                             </div>
                         </div>
                         <!-- Today Intraday Chart -->
-                        <div id="today-chart" style="display: none; height: 230px; width: 95%; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
+                        <div id="today-chart" style="display: none; height: 230px; width: 100%; max-width: 100%; overflow: hidden; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
                     </div>
 
                     <div style="max-height: 250px; overflow-y: auto;">
@@ -1400,7 +1404,7 @@
                             </div>
                         </div>
                         <!-- Yesterday Intraday Chart -->
-                        <div id="yesterday-chart" style="display: none; height: 230px; width: 95%; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
+                        <div id="yesterday-chart" style="display: none; height: 230px; width: 100%; max-width: 100%; overflow: hidden; margin: 12px auto 0 auto; background: rgba(255,255,255,0.4); border-radius: 6px; border: 1px solid var(--coffee-light); padding: 5px;"></div>
                     </div>
                 </div>
 
@@ -1834,7 +1838,11 @@
         function displayPredictionResult(result) {
             // Display chart
             const chartData = JSON.parse(result.chart);
-            Plotly.newPlot('chart', chartData.data, chartData.layout);
+            const config = {
+                responsive: true,
+                displayModeBar: false
+            };
+            Plotly.newPlot('chart', chartData.data, chartData.layout, config);
 
             // Display Tomorrow Forecast Box
             if (result.prediction_results && result.prediction_results.length > 0) {
@@ -2163,6 +2171,7 @@
                 document.getElementById('top-p-value').textContent = this.value;
             });
             setupLimitOrderListeners();
+            window.addEventListener('resize', triggerAllChartsResize);
         }
 
         // Display status information
@@ -2209,6 +2218,24 @@
                 document.getElementById('auth-tab-content').style.display = 'block';
                 checkAuthStatus();
             }
+            triggerAllChartsResize();
+        }
+
+        // Trigger resize for all active, visible charts
+        function triggerAllChartsResize() {
+            setTimeout(() => {
+                const chartIds = ['chart', 'metrics-history-chart', 'today-chart', 'yesterday-chart'];
+                chartIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && el.offsetWidth > 0 && el.classList.contains('js-plotly-plot')) {
+                        try {
+                            Plotly.Plots.resize(el);
+                        } catch (err) {
+                            console.warn(`Error resizing chart ${id}:`, err);
+                        }
+                    }
+                });
+            }, 50);
         }
 
         // Exchange Game Variables
@@ -2464,6 +2491,7 @@
                     metricsSection.style.display = 'none';
                 }
             }
+            triggerAllChartsResize();
         }
 
         async function handleLogin() {
