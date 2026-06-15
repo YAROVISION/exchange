@@ -2899,8 +2899,8 @@
                     if (virtualTradeSubState === 'waiting_75') {
                         if (currentBtcPrice >= val75) {
                             if (virtualWalletBtc > 0) {
-                                // Compare purchase cost with sell proceeds:
-                                if (currentBtcPrice * 0.999 >= virtualBuyPrice * 1.001) {
+                                // Compare purchase cost + 0.1% target net profit with sell proceeds:
+                                if (currentBtcPrice * 0.999 >= virtualBuyPrice * 1.002) {
                                     virtualWalletUsd = virtualWalletBtc * currentBtcPrice * 0.999;
                                     virtualWalletBtc = 0;
                                     virtualTradeState = 'idle';
