@@ -39,6 +39,7 @@ CORS(app)
 # Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+TICK_SYNC_WRITE_ENABLED = os.environ.get("TICK_SYNC_WRITE_ENABLED", "false").lower() == "true"
 supabase: Client = None
 
 if SUPABASE_URL and SUPABASE_KEY and "your-project-id" not in SUPABASE_URL:
@@ -2393,18 +2394,39 @@ ticks_lock = threading.Lock()
 
 def load_ticks_history():
     global ticks_list, tick_database_size
-    try:
-        if os.path.exists(TICKS_FILE):
-            with open(TICKS_FILE, 'r') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    ticks_list = data.get('ticks', [])
-                    tick_database_size = data.get('tick_database_size', 17280)
-                elif isinstance(data, list):
-                    ticks_list = data
-            print(f"Loaded {len(ticks_list)} ticks from history file.")
-    except Exception as e:
-        print(f"Error loading ticks history: {e}")
+    loaded_from_supabase = False
+    
+    if supabase:
+        try:
+            print("Fetching ticks history from Supabase...")
+            res = supabase.table('ticks_store').select('*').eq('id', 1).execute()
+            if res.data and len(res.data) > 0:
+                row = res.data[0]
+                with ticks_lock:
+                    ticks_list = row.get('ticks', [])
+                    tick_database_size = row.get('tick_database_size', 17280)
+                print(f"✅ Loaded {len(ticks_list)} ticks from Supabase (DB size limit: {tick_database_size}).")
+                loaded_from_supabase = True
+            else:
+                print("ℹ️ No tick history record found in Supabase (id=1).")
+        except Exception as e:
+            print(f"⚠️ Failed to load ticks from Supabase: {e}")
+            
+    if not loaded_from_supabase:
+        try:
+            if os.path.exists(TICKS_FILE):
+                with open(TICKS_FILE, 'r') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        with ticks_lock:
+                            ticks_list = data.get('ticks', [])
+                            tick_database_size = data.get('tick_database_size', 17280)
+                    elif isinstance(data, list):
+                        with ticks_lock:
+                            ticks_list = data
+                print(f"Loaded {len(ticks_list)} ticks from local history file.")
+        except Exception as e:
+            print(f"Error loading ticks history from local file: {e}")
 
 def save_ticks_history():
     try:
@@ -2417,9 +2439,63 @@ def save_ticks_history():
     except Exception as e:
         print(f"Error saving ticks history: {e}")
 
+def save_ticks_to_supabase():
+    if not supabase:
+        return
+    if not TICK_SYNC_WRITE_ENABLED:
+        print("ℹ️ Supabase write disabled (running in development mode)")
+        return
+    try:
+        with ticks_lock:
+            local_ticks = list(ticks_list)
+            local_size = tick_database_size
+            
+        print(f"Syncing {len(local_ticks)} ticks with Supabase...")
+        supabase.table('ticks_store').upsert({
+            'id': 1,
+            'ticks': local_ticks,
+            'tick_database_size': local_size,
+            'updated_at': datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }).execute()
+        print("✅ Successfully synced ticks history with Supabase.")
+    except Exception as e:
+        print(f"❌ Error saving ticks to Supabase: {e}")
+
+def register_shutdown_handlers():
+    import signal
+    import sys
+    
+    def graceful_shutdown(signum, frame):
+        print(f"\n🛑 Received shutdown signal ({signum}). Gracefully saving state...")
+        
+        # 1. Save to Supabase (only if writing is enabled)
+        if supabase and TICK_SYNC_WRITE_ENABLED:
+            try:
+                save_ticks_to_supabase()
+            except Exception as e:
+                print(f"Error saving to Supabase during shutdown: {e}")
+                
+        # 2. Save to local file
+        try:
+            save_ticks_history()
+            print("✅ State saved locally successfully.")
+        except Exception as e:
+            print(f"Error saving to local file during shutdown: {e}")
+            
+        print("Goodbye!")
+        sys.exit(0)
+        
+    try:
+        signal.signal(signal.SIGTERM, graceful_shutdown)
+        signal.signal(signal.SIGINT, graceful_shutdown)
+        print("Registered shutdown signal handlers (SIGTERM, SIGINT).")
+    except ValueError as e:
+        print(f"⚠️ Could not register signal handlers (likely not in main thread): {e}")
+
 def tick_accumulation_loop():
     global ticks_list
     print("Starting background tick accumulation thread...")
+    last_supabase_save = time.time()
     while True:
         try:
             url = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
@@ -2433,11 +2509,18 @@ def tick_accumulation_loop():
                         while len(ticks_list) > tick_database_size:
                             ticks_list.pop(0)
                         save_ticks_history()
+                        
+                    # Hourly Sync to Supabase
+                    current_time = time.time()
+                    if current_time - last_supabase_save >= 3600:
+                        save_ticks_to_supabase()
+                        last_supabase_save = current_time
         except Exception as e:
             pass
         time.sleep(5)
 
-# Load existing ticks history and start the polling thread
+# Load existing ticks history, register shutdown handlers and start the polling thread
+register_shutdown_handlers()
 load_ticks_history()
 if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     t = threading.Thread(target=tick_accumulation_loop, daemon=True)
@@ -2471,6 +2554,12 @@ def update_tick_database_size():
         while len(ticks_list) > tick_database_size:
             ticks_list.pop(0)
         save_ticks_history()
+        
+    # Sync with Supabase immediately on size change
+    try:
+        save_ticks_to_supabase()
+    except Exception as e:
+        print(f"Error syncing size change to Supabase: {e}")
         
     return jsonify({
         'success': True,
