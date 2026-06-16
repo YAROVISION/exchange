@@ -1237,6 +1237,18 @@
                                 </div>
                             </div>
 
+                            <!-- Trade Analytics Section -->
+                            <div style="margin-top: 15px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
+                                <h5 style="margin-top: 0; margin-bottom: 12px; font-size: 13px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
+                                    💼 Аналітика останніх 5 угод
+                                </h5>
+                                <div class="exchange-card" style="padding: 15px; text-align: left;">
+                                    <div id="metrics-trades-analytics-content" style="font-size: 13px; color: var(--coffee-dark); line-height: 1.6;">
+                                        Завантаження аналітики угод...
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Price History Statistics -->
                             <div style="margin-top: 15px; border-top: 1px dashed var(--coffee-light); padding-top: 15px;">
                                 <h5 style="margin-top: 0; margin-bottom: 12px; font-size: 13px; font-weight: bold; color: var(--coffee-espresso); display: flex; align-items: center; gap: 6px;">
@@ -2372,6 +2384,121 @@
             }
         }
 
+        // Fetch trade history and calculate analytics for the last 5 trades
+        async function updateTradesAnalytics() {
+            if (!isLoggedIn || userEmail !== 'yarovision@gmail.com') return;
+            const container = document.getElementById('metrics-trades-analytics-content');
+            if (!container) return;
+
+            try {
+                const response = await fetch('/api/exchange/history');
+                if (response.ok) {
+                    const trades = await response.json();
+                    if (!trades || trades.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; color: var(--coffee-accent); padding: 10px 0;">Угоди відсутні. Здійсніть купівлю або продаж біткоїна, щоб побачити аналітику.</div>';
+                        return;
+                    }
+
+                    // Get the last 5 trades
+                    const last5 = trades.slice(0, 5);
+
+                    // Compute analytics
+                    let buyCount = 0;
+                    let sellCount = 0;
+                    let totalBuyVolume = 0;
+                    let totalSellVolume = 0;
+                    let totalBuyUsd = 0;
+                    let totalSellUsd = 0;
+                    let totalFees = 0;
+
+                    last5.forEach(t => {
+                        const amt = parseFloat(t.btc_amount || t.amount || 0);
+                        const price = parseFloat(t.price || 0);
+                        const fee = parseFloat(t.fee || 0);
+                        totalFees += fee;
+
+                        if (t.type === 'buy') {
+                            buyCount++;
+                            totalBuyVolume += amt;
+                            totalBuyUsd += amt * price;
+                        } else if (t.type === 'sell') {
+                            sellCount++;
+                            totalSellVolume += amt;
+                            totalSellUsd += amt * price;
+                        }
+                    });
+
+                    const avgBuyPrice = buyCount > 0 ? (totalBuyUsd / totalBuyVolume) : 0;
+                    const avgSellPrice = sellCount > 0 ? (totalSellUsd / totalSellVolume) : 0;
+
+                    // Build HTML
+                    let html = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 15px; background: rgba(139, 94, 60, 0.05); padding: 12px; border-radius: 6px; border: 1px solid var(--coffee-light);">
+                            <div>
+                                <span style="font-weight: 600; color: var(--coffee-accent);">Угод (останні 5):</span>
+                                <div style="font-size: 16px; font-weight: bold; color: var(--coffee-espresso); margin-top: 4px;">Купівель: ${buyCount} | Продажів: ${sellCount}</div>
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--coffee-accent);">Сер. курс купівлі:</span>
+                                <div style="font-size: 16px; font-weight: bold; color: #2e7d32; margin-top: 4px;">${avgBuyPrice > 0 ? '$' + avgBuyPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '$-.--'}</div>
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--coffee-accent);">Сер. курс продажу:</span>
+                                <div style="font-size: 16px; font-weight: bold; color: #c62828; margin-top: 4px;">${avgSellPrice > 0 ? '$' + avgSellPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '$-.--'}</div>
+                            </div>
+                            <div>
+                                <span style="font-weight: 600; color: var(--coffee-accent);">Сумарна комісія:</span>
+                                <div style="font-size: 16px; font-weight: bold; color: var(--coffee-dark); margin-top: 4px;">$${totalFees.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</div>
+                            </div>
+                        </div>
+                        
+                        <h6 style="margin: 10px 0 6px 0; font-size: 12px; font-weight: bold; color: var(--coffee-espresso);">📋 Список останніх 5 угод:</h6>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--coffee-light); color: var(--coffee-accent); font-weight: bold; text-align: left;">
+                                    <th style="padding: 6px 4px;">Час</th>
+                                    <th style="padding: 6px 4px;">Тип</th>
+                                    <th style="padding: 6px 4px; text-align: right;">Курс (USD)</th>
+                                    <th style="padding: 6px 4px; text-align: right;">Кількість (BTC)</th>
+                                    <th style="padding: 6px 4px; text-align: right;">Комісія</th>
+                                    <th style="padding: 6px 4px; text-align: right;">Сума</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    last5.forEach(t => {
+                        const typeLabel = t.type === 'buy' ? '<span style="color:#2e7d32; font-weight:bold;">КУПІВЛЯ</span>' : '<span style="color:#c62828; font-weight:bold;">ПРОДАЖ</span>';
+                        const amt = parseFloat(t.btc_amount || t.amount || 0);
+                        const price = parseFloat(t.price || 0);
+                        const fee = parseFloat(t.fee || 0);
+                        const total = amt * price;
+                        const dateStr = t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : 'N/A';
+
+                        html += `
+                            <tr style="border-bottom: 1px solid rgba(139, 94, 60, 0.15);">
+                                <td style="padding: 6px 4px; color: var(--coffee-accent);">${dateStr}</td>
+                                <td style="padding: 6px 4px;">${typeLabel}</td>
+                                <td style="padding: 6px 4px; text-align: right; font-weight: bold; color: var(--coffee-espresso);">$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td style="padding: 6px 4px; text-align: right;">${amt.toFixed(8)}</td>
+                                <td style="padding: 6px 4px; text-align: right; color: var(--coffee-accent);">$${fee.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                                <td style="padding: 6px 4px; text-align: right; font-weight: bold; color: var(--coffee-espresso);">$${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                    container.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Error updating trades analytics:", e);
+                container.innerHTML = '<div style="color: #c62828;">Не вдалося завантажити аналітику угод через помилку мережі.</div>';
+            }
+        }
+
         function updateButtonStates() {
             // exchange buttons
             const exchangeActionBtn = document.getElementById('trade-action-btn');
@@ -2501,6 +2628,7 @@
             if (metricsSection) {
                 if (isLoggedIn && isEmailAdmin) {
                     metricsSection.style.display = 'block';
+                    updateTradesAnalytics();
                 } else {
                     metricsSection.style.display = 'none';
                 }
@@ -2899,8 +3027,8 @@
                     if (virtualTradeSubState === 'waiting_75') {
                         if (currentBtcPrice >= val75) {
                             if (virtualWalletBtc > 0) {
-                                // Compare purchase cost + 0.1% target net profit with sell proceeds:
-                                if (currentBtcPrice * 0.999 >= virtualBuyPrice * 1.002) {
+                                // Compare purchase cost + 0.1% buy fee + 0.1% target net profit with sell proceeds:
+                                if (currentBtcPrice * 0.999 >= virtualBuyPrice * 1.001 * 1.001) {
                                     virtualWalletUsd = virtualWalletBtc * currentBtcPrice * 0.999;
                                     virtualWalletBtc = 0;
                                     virtualTradeState = 'idle';
@@ -3308,6 +3436,7 @@
                     }
 
                     updateExchangeUI();
+                    updateTradesAnalytics();
                     amountInput.value = '';
                     document.getElementById('trade-equivalent-usd').textContent = '$0.00';
                     showStatus('success', data.message || 'Угоду успішно виконано!');
@@ -3402,6 +3531,7 @@
                         virtualTradeState = 'idle';
                         virtualBuyPrice = 0;
                         updateExchangeUI();
+                        updateTradesAnalytics();
                         showStatus('info', data.message || 'Баланс успішно скинуто!');
                     } else {
                         alert(data.error || 'Помилка скидання балансу');
@@ -3774,6 +3904,7 @@
                     }
 
                     updateExchangeUI();
+                    updateTradesAnalytics();
 
                     renderLimitOrderState();
                     updateButtonStates();
@@ -3965,6 +4096,7 @@
                     activePosition = null;
 
                     updateExchangeUI();
+                    updateTradesAnalytics();
 
                     renderSellLimitOrderState();
                     updateButtonStates();
